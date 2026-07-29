@@ -1,3 +1,4 @@
+<!-- comprehension: mutate -->
 # Mutate
 
 Step 10 of [the migration walkthrough](start.md): run the steps that reach the

@@ -47,6 +47,23 @@ call: present the options with their consequences and wait for the answer.
 After each command, report what happened and what comes next. A migration
 the user watched happen is a migration they can trust.
 
+**Some steps hold you to those two rules.**
+Reading a page with `liftoff skills <topic>` prints a **proof token** at the end of it.
+Pass that back as `--proof-token` on the command that asked for it and the step proceeds.
+That is all it is: evidence you fetched the guidance instead of guessing at it.
+
+Anything that changes the source needs the user's approval, and that is the one thing you cannot supply.
+`liftoff` refuses to record an approval when it can tell an assistant is driving — only a person, in their own terminal, can give it.
+So:
+
+1. **Attempt the step.** Don't announce an approval before you have been refused: until the step has asked, there is nothing to approve and the user just gets an error.
+2. **Read the refusal.** It names what is missing and the exact command that supplies it.
+3. **Stop and explain.** Tell the user plainly what the command you ran will do to their source system, then give them the command the refusal named. They run it themselves, and it reports what it covers, so they are reading liftoff's description of the work rather than yours.
+4. **Re-run your original command unchanged.**
+
+Proof tokens and approvals both expire, and an approval also stops applying once it has been spent on a run or if the staged batch changes underneath it.
+You will not have to guess when that happens — the step refuses again, names what it needs, and the fix is the same as the first time.
+
 **Stay inside the CLI.** `liftoff` is the whole surface. Don't open the
 workspace SQLite store yourself — `status` and `audit` are how you inspect
 it — and don't call the source's or Spacelift's APIs on the side, not to

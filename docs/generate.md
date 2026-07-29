@@ -94,8 +94,8 @@ resource "spacelift_stack" "my-amazing-workspace-local-no-vcs" {
   space_id                = local.space_id
   repository              = ""
   autodeploy              = false
-  terraform_version       = "1.9.7"
-  terraform_workflow_tool = "CUSTOM"
+  terraform_version       = "1.5.7"
+  terraform_workflow_tool = "TERRAFORM_FOSS"
 }
 ```
 
@@ -189,8 +189,8 @@ resource "spacelift_stack" "demo" {
   repository              = "demo"
   branch                  = "main"
   autodeploy              = false
-  terraform_version       = "1.14.3"
   terraform_workflow_tool = "CUSTOM"
+  runner_image            = "public.ecr.aws/mycorp/runner-terraform:1.14.3"
   before_init             = ["tofu fmt -check"]
 }
 
@@ -199,7 +199,30 @@ resource "spacelift_environment_variable" "tf_var_region" {
   name     = "TF_VAR_region"
   value    = "us-east-1"
 }
+
+resource "spacelift_context_attachment" "org-a-terraform-workflow-tool_demo" {
+  context_id = var.inherited_contexts["org-a-terraform-workflow-tool"]
+  stack_id   = spacelift_stack.demo.id
+  priority   = 1
+}
 ```
+
+`demo` runs the **CUSTOM** workflow tool, which covers a tool Spacelift's
+runner doesn't provide — Terraform over 1.5.7 here, other tools in other
+sources. Those stacks run on an image you supply: set `custom_runner_image`
+([setup](setup.md)) and `audit --repair` writes it into `runner_image`, tagged
+with the stack's version. Generate also attaches each one to a context
+carrying the workflow commands, so the stack is runnable as generated. Until
+the image is set it is an error finding ([audit](audit.md)) — the stack would
+land unable to run.
+
+Notice there is no `terraform_version`. Spacelift offers no version selector
+for CUSTOM — the image provides the tool — so pinning one would say nothing,
+and it isn't rendered. `runner_image` is what decides the version that runs,
+which is why the repair tags it: left untagged, `custom_runner_image` picks up
+each stack's own version, as `1.14.3` did above. Tag it yourself and that one
+image runs every CUSTOM stack, whatever version it happens to carry — do that
+only if you mean to standardize them all.
 
 A registry module is the same shape — its own `module_<slug>.tf`, `space_id =
 local.space_id`, and its mounted files below the resource:

@@ -1,7 +1,7 @@
+<!-- comprehension: discover -->
 # Discover
 
-Step 5 of [the migration walkthrough](start.md): pull the whole estate from the
-source into the local store — **read-only**.
+Step 5 of [the migration walkthrough](start.md): pull the whole estate from the source into the local store — **read-only**.
 
 ## Step 5 — discover the estate
 
@@ -63,10 +63,12 @@ Two behaviors worth knowing:
 - **Re-discovering after migrating a batch is additive.** It refreshes entity
   data, skips nothing you've staged or migrated, and picks up new source
   entities — so the next batch starts from a current picture.
-- **Teams and agent pools come over as audit-only data.** Discover records your
-  TFC teams (and their access) and agent pools, but the kit never generates from
-  them — TFC RBAC doesn't map 1:1 onto Spacelift, and a worker pool is stood up
-  separately. [`audit`](audit.md) surfaces each so you can recreate them
+- **Teams, agent pools, and policies come over as audit-only data.** Discover
+  records your TFC teams (and their access), agent pools, and policies and policy
+  sets, but the kit never generates from them — TFC RBAC doesn't map 1:1 onto
+  Spacelift, a worker pool is stood up separately, and policy bodies are Rego in
+  Spacelift (a different language from Sentinel/OPA) so they don't translate
+  automatically. [`audit`](audit.md) surfaces each so you can recreate them
   deliberately; nothing is placed in a space.
 
 From here, no command touches the network until the module is handed to

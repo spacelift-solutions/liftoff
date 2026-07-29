@@ -65,17 +65,20 @@ count against the `Counts` your discover reported.
 
 ### Apply the plan you read
 
-Publish ends by printing an **apply token**. It confirms that one plan:
+Publish ends by printing a **proof token** for the plan it just showed you.
+Applying takes that token and an explicit `--confirm`:
 
 ```bash
-liftoff publish --apply-token 9f2c1ab34de5f607
+liftoff publish --confirm --proof-token <token from the plan>
 ```
 
-The token is derived from the run, the commit it planned, and the resource counts,
-so it only confirms the plan it was issued for. Re-generate, publish again, or let
-anything else change what would apply, and the old token is refused — you read the
-new plan and use its new token. It's the same guarantee as handing `tofu apply` a
-saved plan file, and the reason an agent can't apply a plan it never read.
+The token covers that one plan — the run, the commit it planned, and the resource counts.
+Re-generate, publish again, or let anything else change what would apply, and the old token is refused; you read the new plan and use its new token.
+It is the same guarantee as handing `tofu apply` a saved plan file, and the reason an agent cannot apply a plan it never read.
+
+Reading the plan is only half of it.
+Applying also needs a person to approve it, and that approval is not something an assistant can supply — the refusal names the command to run.
+See [the agent rules](start.md#driving-this-as-an-agent) for how that exchange goes.
 
 Applying pushes nothing (a new commit would replan and retire the token). It
 confirms the run and streams the apply the way the plan streamed, ending when the

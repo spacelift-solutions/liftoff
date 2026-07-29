@@ -127,11 +127,28 @@ handle after the migration.
   name and re-run `liftoff audit` — `Result` updates before anything is
   written. Here, leaving `default_branch` unset writes `main`, and the module
   tool repairs nothing until `module_workflow_tool` is set.
+  `custom-workflow-missing-runner-image` works the same way: stacks that
+  migrate onto the CUSTOM workflow tool run the tool from their runner image,
+  so they need `custom_runner_image` set — the repair tags it with each
+  stack's version, unless you tagged the image yourself, in which case that
+  one image runs every CUSTOM stack ([setup](setup.md),
+  [generate](generate.md)). `Result` is the reference it would write, so you
+  can see which you're getting before repairing.
 - **Unrepairable errors** are fix-at-the-source problems: attach the
   workspace to a repository and re-discover, accept them explicitly at
   generate time with `--ignore-finding` (renders the stacks annotated for
   hand-editing), or `unstage` the offending units to leave them out of the
   batch ([generate](generate.md), [batch](batch.md)).
+  `stack-version-unsupported-syntax` is one of these: the source reported a
+  version Spacelift turns down, so the stack would fail when the admin stack
+  applies. Exact versions and constraints both carry over — `1.5.7`, `1.5`,
+  `>= 1.0.0`, `~> 1.5.0` are all fine — but `latest`, a version with a fourth
+  segment, and anything that is neither are rejected. Pin one it accepts on
+  the source and re-discover. Accepting the finding renders the value as it
+  stands, annotated, for you to correct by hand before applying. Stacks on the
+  CUSTOM workflow tool are exempt: Spacelift has no version selector for them,
+  so no version is rendered and there is nothing to reject
+  ([generate](generate.md)).
 - **Warnings** (the empty secrets) carry over as-is; you set those values in
   Spacelift afterwards.
 - **`team-not-migrated`** is informational (a warning for the Owners team and
@@ -148,6 +165,16 @@ handle after the migration.
   used the agent pool. Like the team finding it's account-global, has no repair,
   and re-surfaces every run; `--ignore-finding agent-pool-not-migrated` once
   you've provisioned worker pools.
+- **`policy-not-migrated`** and **`policy-set-not-migrated`** are informational.
+  Each surfaces a TFC policy (naming its kind and enforcement level) or policy
+  set (naming its scope and how many policies/workspaces it covers). Policy
+  bodies are Sentinel or OPA, and Spacelift policies are Rego, so the kit lists
+  them instead of generating rules it can't translate — you rewrite each in Rego
+  as a `spacelift_policy` of the matching type and attach it with
+  `spacelift_policy_attachment` (a global policy set becomes root-space
+  attachments). Like the team finding they're account-global, have no repair, and
+  re-surface every run; `--ignore-finding policy-not-migrated` (and
+  `policy-set-not-migrated`) once you've recreated governance.
 
 When the results read right, apply:
 

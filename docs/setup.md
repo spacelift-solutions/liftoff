@@ -144,7 +144,7 @@ Sources (1)
       │                    │                       │          │                     │ once                │            │
       └────────────────────┴───────────────────────┴──────────┴─────────────────────┴─────────────────────┴────────────┘
 
-    Repair Keys (used in `liftoff audit --repair`) (2)
+    Repair Keys (used in `liftoff audit --repair`) (3)
       ┌──────────────────────┬──────────────────────┬──────────┬─────────┬──────────────────────┬──────────────────────┐
       │ Label                │ Key                  │ Required │ Default │ Help                 │ When Unset           │
       ├──────────────────────┼──────────────────────┼──────────┼─────────┼──────────────────────┼──────────────────────┤
@@ -161,6 +161,13 @@ Sources (1)
       │                      │                      │          │         │ branch (they track   │                      │
       │                      │                      │          │         │ their repo's         │                      │
       │                      │                      │          │         │ default)             │                      │
+      │ Custom runner image  │ custom_runner_image  │ –        │         │ Untagged Docker      │ CUSTOM-workflow      │
+      │                      │                      │          │         │ image carrying the   │ stacks stay          │
+      │                      │                      │          │         │ Terraform binaries   │ unrunnable and       │
+      │                      │                      │          │         │ for CUSTOM-workflow  │ `liftoff audit`      │
+      │                      │                      │          │         │ stacks; the repair   │ flags each until     │
+      │                      │                      │          │         │ tags it with each    │ this is set          │
+      │                      │                      │          │         │ stack's version      │                      │
       └──────────────────────┴──────────────────────┴──────────┴─────────┴──────────────────────┴──────────────────────┘
 
     Mutations (1)
@@ -269,12 +276,14 @@ Config Keys (used in `liftoff discover`) (4)
   │ workspace_concurrency │ –   │ –        │ –      │ up to 8 workspaces are enriched concurrently            │
   └───────────────────────┴─────┴──────────┴────────┴─────────────────────────────────────────────────────────┘
 
-Repair Keys (used in `liftoff audit --repair`) (2)
+Repair Keys (used in `liftoff audit --repair`) (3)
   ┌──────────────────────┬─────┬──────────┬────────┬───────────────────────────────────────────────────────────────┐
   │ Key                  │ Set │ Required │ Secret │ Effect                                                        │
   ├──────────────────────┼─────┼──────────┼────────┼───────────────────────────────────────────────────────────────┤
   │ module_workflow_tool │ –   │ –        │ –      │ empty module workflow tools stay unrepaired until this is set │
   │ default_branch       │ –   │ –        │ –      │ missing branches will default to: main                        │
+  │ custom_runner_image  │ –   │ –        │ –      │ CUSTOM-workflow stacks stay unrunnable and `liftoff audit`    │
+  │                      │     │          │        │ flags each until this is set                                  │
   └──────────────────────┴─────┴──────────┴────────┴───────────────────────────────────────────────────────────────┘
 
 Mutations (1)
@@ -302,16 +311,98 @@ Worth deciding now:
 - **Rate and concurrency** (`requests_per_second`, `workspace_concurrency`) —
   the defaults are safe for Terraform Cloud; a self-hosted TFE may want them
   lowered.
-- **The repair keys** (`module_workflow_tool`, `default_branch`) — what
-  `liftoff audit --repair` writes in step 6. They change nothing until an
-  audit has findings to fix, and you can re-run configure to adjust them
-  whenever.
+- **The repair keys** (`module_workflow_tool`, `default_branch`,
+  `custom_runner_image`) — what `liftoff audit --repair` writes in step 6.
+  They change nothing until an audit has findings to fix, and you can re-run
+  configure to adjust them whenever. `custom_runner_image` matters if any
+  workspace runs a Terraform version Spacelift's runner doesn't include:
+  those stacks migrate onto the CUSTOM workflow tool and run the tool from
+  that image, tagged with each stack's version ([generate](generate.md)).
+  **The image has to carry the tool.** Spacelift downloads nothing for a CUSTOM
+  stack — it runs the commands in the mounted `workflow.yml`, so a missing
+  binary surfaces as `sh: terraform: not found` and the run stops in
+  `INITIALIZING`. Spacelift's own `runner-terraform` image does not satisfy
+  this; build on it and install the versions you need.
+  **Give it no tag.** An untagged image is what lets the repair tag each stack
+  with the version its workspace ran, so every stack keeps its own. If you tag
+  it yourself — `…/runner-terraform:latest`, say — that exact image is written
+  to every CUSTOM stack, so whatever tool version it carries is the one they
+  all run. `liftoff audit` prints the reference it would write per stack, so
+  you can check before repairing.
 - **The mutations** — opt-ins for the later `mutate` step, `secrets` here
   being one example. A mutation is never remembered: you pass
   `--allow-mutation <name>` on every `mutate` that should use it, which is why
   they aren't config keys. Decide whether sensitive variable values should be
   captured (the [mutate](mutate.md) step shows the flag) or re-entered in
   Spacelift after the migration.
+
+### Building the runner image for CUSTOM stacks
+
+If any workspace runs a Terraform newer than Spacelift bundles, its stack
+migrates onto the CUSTOM workflow tool and runs the binary **your** image
+carries. Spacelift downloads nothing for it — you hold the licence for those
+versions, so you build the image.
+
+You need one tag per version in the batch. `liftoff audit` names the version in
+each finding, so the audit output is the list:
+
+```text
+custom-workflow-missing-runner-image (error) (2)
+  stack ws-abc123 runs version 1.9.0 on the CUSTOM workflow tool and has no runner image
+  stack ws-def456 runs version 1.10.3 on the CUSTOM workflow tool and has no runner image
+```
+
+A Dockerfile that adds one version on top of Spacelift's runner image. Build on
+that image rather than a bare Alpine or `hashicorp/terraform`: the worker calls
+`ps` to watch the container, and the image has to carry the `spacelift` user
+(UID 1983) that jobs run as. The fetch stage keeps the build from depending on
+which archive tools the base image ships:
+
+```dockerfile
+ARG TERRAFORM_VERSION
+
+FROM alpine:3 AS fetch
+ARG TERRAFORM_VERSION
+RUN apk add --no-cache curl unzip \
+ && curl -sSLo /tmp/tf.zip \
+      "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" \
+ && unzip /tmp/tf.zip -d /out
+
+FROM public.ecr.aws/spacelift/runner-terraform:latest
+USER root
+COPY --from=fetch /out/terraform /usr/local/bin/terraform
+RUN chmod 0755 /usr/local/bin/terraform
+USER spacelift
+```
+
+Build and push one tag per version, **tagging each with the version itself** —
+that is what the repair writes:
+
+```bash
+for v in 1.9.0 1.10.3; do
+  docker build --build-arg "TERRAFORM_VERSION=$v" -t "$REGISTRY/liftoff-runner:$v" .
+  docker push "$REGISTRY/liftoff-runner:$v"
+done
+```
+
+Where you push matters. On Spacelift's **public** worker pool the image must be
+public, and only these registries are accepted: `public.ecr.aws`,
+`dkr.ecr.<region>.amazonaws.com`, `docker.io`, `registry.hub.docker.com`,
+`ghcr.io`, `gcr.io`, `docker.pkg.dev`, `azurecr.io`, `quay.io`,
+`registry.gitlab.com`. A **private** image requires a private worker pool — the
+public pool caches images across accounts, so it only ever pulls public ones.
+
+Then point the setting at the **untagged** name and repair:
+
+```bash
+liftoff configure --set source.custom_runner_image=$REGISTRY/liftoff-runner
+liftoff audit --repair
+```
+
+Each CUSTOM stack gets `$REGISTRY/liftoff-runner:<its own version>`. Build for
+linux/amd64 — that is what Spacelift workers run. A missing or non-executable
+binary shows up as `sh: terraform: not found`, with the run stopping in
+`INITIALIZING`.
 
 When the effects read the way you intend and the token authenticated, you are
 ready for [discover](discover.md).
