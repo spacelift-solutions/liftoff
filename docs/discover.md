@@ -63,10 +63,11 @@ Two behaviors worth knowing:
 - **Re-discovering after migrating a batch is additive.** It refreshes entity
   data, skips nothing you've staged or migrated, and picks up new source
   entities — so the next batch starts from a current picture.
-- **Teams come over as audit-only data.** Discover records your TFC teams and
-  their access, but the kit never generates Spacelift access from them — TFC
-  RBAC doesn't map 1:1. [`audit`](audit.md) surfaces each team so you
-  can recreate access deliberately; nothing is placed in a space.
+- **Teams and agent pools come over as audit-only data.** Discover records your
+  TFC teams (and their access) and agent pools, but the kit never generates from
+  them — TFC RBAC doesn't map 1:1 onto Spacelift, and a worker pool is stood up
+  separately. [`audit`](audit.md) surfaces each so you can recreate them
+  deliberately; nothing is placed in a space.
 
 From here, no command touches the network until the module is handed to
 Spacelift: [batch](batch.md), [audit](audit.md), and [generate](generate.md)

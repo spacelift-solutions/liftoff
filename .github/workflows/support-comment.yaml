@@ -9,7 +9,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
-  actions: read
+  actions: read #required since this is a private repo
 
 jobs:
   comment:

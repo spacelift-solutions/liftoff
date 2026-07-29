@@ -52,8 +52,11 @@ Homebrew carries the newest build of each line and nothing older, so an exact
 version comes from the install script:
 
 ```bash
-VERSION=v1.3.0 curl -fsSL https://raw.githubusercontent.com/spacelift-solutions/liftoff/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/spacelift-solutions/liftoff/main/install.sh | VERSION=v1.3.0 sh
 ```
+
+The setting goes on `sh`, not in front of `curl` — in front of `curl` it
+reaches the download and not the script that reads it.
 
 Pinning is what you want in CI, where "whatever is newest" is not a build you
 can reproduce. The tags are on the
@@ -63,7 +66,7 @@ can reproduce. The tags are on the
 it when that directory needs root:
 
 ```bash
-INSTALL_DIR="$HOME/.local/bin" curl -fsSL https://raw.githubusercontent.com/spacelift-solutions/liftoff/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/spacelift-solutions/liftoff/main/install.sh | INSTALL_DIR="$HOME/.local/bin" sh
 ```
 
 ## Step 1 — initialize the workspace

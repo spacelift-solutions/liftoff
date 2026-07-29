@@ -142,6 +142,12 @@ handle after the migration.
   attaching a role. It has no repair and re-surfaces every run (it's
   account-global, not part of the batch); accept it with `--ignore-finding
   team-not-migrated` once you've handled RBAC.
+- **`agent-pool-not-migrated`** is informational. A TFC agent pool isn't
+  migrated — the Spacelift equivalent is a worker pool, which you stand up
+  separately (install workers, register the pool), then set on the stacks that
+  used the agent pool. Like the team finding it's account-global, has no repair,
+  and re-surfaces every run; `--ignore-finding agent-pool-not-migrated` once
+  you've provisioned worker pools.
 
 When the results read right, apply:
 

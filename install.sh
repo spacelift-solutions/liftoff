@@ -76,13 +76,14 @@ tar -xzf "$tmp/$archive" -C "$tmp" liftoff || die "could not extract $archive"
 if [ ! -d "$INSTALL_DIR" ]; then
 	mkdir -p "$INSTALL_DIR" 2>/dev/null ||
 		die "$INSTALL_DIR does not exist and could not be created" \
-			"re-run with INSTALL_DIR=\$HOME/.local/bin"
+			"re-run piping to: INSTALL_DIR=\$HOME/.local/bin sh"
 fi
 
-# Never escalate on the caller's behalf: say what to run instead.
+# Never escalate on the caller's behalf: say what to run instead. The setting
+# goes on sh — in front of curl it reaches the download, not this script.
 [ -w "$INSTALL_DIR" ] ||
 	die "$INSTALL_DIR is not writable" \
-		"re-run with INSTALL_DIR=\$HOME/.local/bin, or: curl -fsSL https://raw.githubusercontent.com/$REPO/main/install.sh | sudo sh"
+		"pipe to: INSTALL_DIR=\$HOME/.local/bin sh — or to: sudo sh"
 
 install -m 755 "$tmp/liftoff" "$INSTALL_DIR/liftoff" ||
 	die "could not install to $INSTALL_DIR"
