@@ -1,16 +1,12 @@
 # Restore
 
-The contingency command of [the migration walkthrough](start.md): put the
-source back if a [`mutate`](mutate.md) run was interrupted before it finished
-reverting. On a clean run every mutation reverts inline, so most migrations
-never run this.
+The contingency command of [the migration walkthrough](start.md): put the source back if a [`mutate`](mutate.md) run was interrupted before it finished reverting.
+On a clean run every mutation reverts inline, so most migrations never run this.
 
 ## When it matters
 
-A mutate run (`liftoff mutate --allow-mutation <name>`) records a restore point
-before each change it makes to the source, and reverts everything before it
-finishes. If such a run is killed partway — network drop, Ctrl-C, a crash — the
-un-reverted changes remain, and the next `liftoff mutate` refuses to start:
+A mutate run (`liftoff mutate --allow-mutation <name>`) records a restore point before each change it makes to the source, and reverts everything before it finishes.
+If such a run is killed partway — network drop, Ctrl-C, a crash — the un-reverted changes remain, and the next `liftoff mutate` refuses to start:
 
 ```text
 ✗ Pending Restore Points  the source has 1 pending restore point(s) from an earlier mutating run that did not finish reverting
@@ -19,8 +15,7 @@ Remediation
   run `liftoff restore` to put the source back, then re-run mutate
 ```
 
-Mutations never stack: nothing else runs against the source until it is
-back to its original state.
+Mutations never stack: nothing else runs against the source until it is back to its original state.
 
 ## Preview, then confirm
 
@@ -28,17 +23,16 @@ back to its original state.
 liftoff restore
 ```
 
-Read-only: lists every pending restore point and what reverting it will do,
-newest first. Nothing pending reports exactly that. To perform the reverts:
+Read-only: lists every pending restore point and what reverting it will do, newest first.
+Nothing pending reports exactly that.
+To perform the reverts:
 
 ```bash
 liftoff restore --confirm
 ```
 
-This is source-mutating — it dispatches each pending restore point back to
-its capability's revert, most recent first, and clears the point once the
-source confirms. A revert that fails is reported and kept for a retry; the
-rest still proceed.
+This is source-mutating — it dispatches each pending restore point back to its capability's revert, most recent first, and clears the point once the source confirms.
+A revert that fails is reported and kept for a retry; the rest still proceed.
 
 For the Terraform source's `secrets` capability, a revert puts each touched workspace back to its original execution mode and agent pool, and deletes the temporary agent pool the extraction created.
 
@@ -47,5 +41,4 @@ Because reverts run most-recent-first, an attachment is always undone before the
 
 Those are the only mutations secret extraction makes.
 
-Once nothing is pending, re-run `liftoff mutate` and continue where you
-were.
+Once nothing is pending, re-run `liftoff mutate` and continue where you were.

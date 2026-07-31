@@ -1,10 +1,8 @@
 <!-- comprehension: mutate -->
 # Mutate
 
-Step 10 of [the migration walkthrough](start.md): run the steps that reach the
-source for something other than reading its estate. Each is a **capability the
-configured source declares**, each is opt-in, and nothing runs unless you name
-it — so this step runs late, only for the batch you've committed to.
+Step 10 of [the migration walkthrough](start.md): run the steps that reach the source for something other than reading its estate.
+Each is a **capability the configured source declares**, each is opt-in, and nothing runs unless you name it — so this step runs late, only for the batch you've committed to.
 
 Run `liftoff sources` to see what the configured source offers.
 Terraform Cloud/Enterprise declares four: `secrets`, `context-secrets`, `state`, and `module-git-versions`.
@@ -12,8 +10,10 @@ Terraform Cloud/Enterprise declares four: `secrets`, `context-secrets`, `state`,
 ## Step 10 — capture the staged batch's secrets and state
 
 ```bash
-liftoff mutate --allow-mutation secrets --allow-mutation context-secrets --allow-mutation state
+liftoff mutate --allow-mutation secrets,context-secrets,state
 ```
+
+`--allow-mutation` accepts a comma-separated list or repeated flags — same shape as `--ignore-finding`.
 
 The source masks sensitive values, so discover left them empty.
 `mutate` recovers them for the **staged batch only**, and the two kinds of secret are separate opt-ins because they change different amounts at the source.
@@ -50,15 +50,11 @@ Next
   $ liftoff finalize staged
 ```
 
-**Run the finalize pushers before `finalize staged`, in that order.** The pushers
-(`finalize sensitive`, `finalize state`) act on **staged units only**, and
-`finalize staged` is the transition that flips the batch *out of* staged (to
-migrated). Flip first and the pushers find nothing to push — the stacks come up
-marked migrated but holding no secrets and no state, with no error to tell you.
-So push, then flip: `finalize staged` refuses until every captured secret and
-state in the batch has been pushed — pushing them is the only way through.
-(`finalize modules` belongs to the same before-`staged` window when you captured
-module versions — see below.)
+**Run the finalize pushers before `finalize staged`, in that order.**
+The pushers (`finalize sensitive`, `finalize state`) act on **staged units only**, and `finalize staged` is the transition that flips the batch *out of* staged (to migrated).
+Flip first and the pushers find nothing to push — the stacks come up marked migrated but holding no secrets and no state, with no error to tell you.
+So push, then flip: `finalize staged` refuses until every captured secret and state in the batch has been pushed — pushing them is the only way through.
+(`finalize modules` belongs to the same before-`staged` window when you captured module versions — see below.)
 
 `Captured` is what this run filled for the staged batch; the counts that remain `Empty` are for units you haven't staged — stage them and re-run to capture those too.
 
@@ -68,40 +64,30 @@ Set those in Spacelift directly.
 
 A few things worth knowing:
 
-- **The opt-in is per run.** With no `--allow-mutation`, `mutate` does nothing and
-  says so — absence is the safe path, never a prompt. It is a flag, not a setting:
-  there is no config key that grants it, so consent belongs to the run in front of
-  you rather than to whoever last edited `config.yaml`.
-- **`state` is opt-in too, though it changes nothing at the source.** It reaches
-  the source and pulls each staged stack's whole state blob — your infrastructure
-  data — so it asks first. `liftoff finalize state` has nothing to push without it.
-- **Every mutation is reverted, and reconcilable.** Each flip is backed up before
-  it happens, so a crash mid-run is recoverable: `mutate` refuses to start while
-  restore points are pending and points you at [`liftoff restore`](restore.md),
-  which puts the source back exactly as it was. Nothing stacks, nothing is left
-  half-flipped.
-- **Run it after the stacks exist.** The generated code carries secret
-  *references* and no state, so the Spacelift stacks stand up from discover's
-  read-only data alone ([deploy](deploy.md)); `mutate` and the finalize pushers
-  configure them afterward.
+- **The opt-in is per run.**
+  With no `--allow-mutation`, `mutate` does nothing and says so — absence is the safe path, never a prompt.
+  It is a flag, not a setting: there is no config key that grants it, so consent belongs to the run in front of you rather than to whoever last edited `config.yaml`.
+- **`state` is opt-in too, though it changes nothing at the source.**
+  It reaches the source and pulls each staged stack's whole state blob — your infrastructure data — so it asks first.
+  `liftoff finalize state` has nothing to push without it.
+- **Every mutation is reverted, and reconcilable.**
+  Each flip is backed up before it happens, so a crash mid-run is recoverable: `mutate` refuses to start while restore points are pending and points you at [`liftoff restore`](restore.md), which puts the source back exactly as it was.
+  Nothing stacks, nothing is left half-flipped.
+- **Run it after the stacks exist.**
+  The generated code carries secret *references* and no state, so the Spacelift stacks stand up from discover's read-only data alone ([deploy](deploy.md)); `mutate` and the finalize pushers configure them afterward.
 
 ## Resolving module versions' commit SHAs
 
-`mutate` is also where module version history is recovered, under a second
-opt-in capability:
+`mutate` is also where module version history is recovered, under a second opt-in capability:
 
 ```bash
 liftoff configure --set vcs.token='${VCS_TOKEN}'
 liftoff mutate --allow-mutation module-git-versions
 ```
 
-`discover` records each private module's published version numbers and tags, but
-the source never exposes the git commit each version was published from. This
-capability fills that gap: for the **staged modules**, it asks each module's VCS
-provider directly over the git protocol (one authenticated request per
-repository — no clone, no `git` binary) to resolve every tag to its commit SHA,
-and stores the SHA alongside the version. [`finalize modules`](finalize.md) then
-pushes those from the store.
+`discover` records each private module's published version numbers and tags, but the source never exposes the git commit each version was published from.
+This capability fills that gap: for the **staged modules**, it asks each module's VCS provider directly over the git protocol (one authenticated request per repository — no clone, no `git` binary) to resolve every tag to its commit SHA, and stores the SHA alongside the version.
+[`finalize modules`](finalize.md) then pushes those from the store.
 
 ```text
 Source  terraform
@@ -117,15 +103,9 @@ Module Git Versions
     └────────────────┴─────────┴───────────────────────────────────────────────┘
 ```
 
-Unlike `secrets`, this **doesn't touch the source** — it reads from the VCS — so
-it takes no restore point and needs no revert. It's additive: the rest of
-`mutate` runs as it always does, so the run also reports whatever it captured for
-the staged batch. It needs a `vcs.token` (a PAT with
-read access to the module repositories); `liftoff` picks the right git username
-per provider, and `vcs.host` covers self-hosted providers (GitHub Enterprise, a
-self-managed GitLab, Bitbucket Data Center). Versions whose module has no VCS
-connection, or whose tag no longer resolves, are reported here and surfaced by
-[`liftoff audit`](audit.md) — never silently dropped.
+Unlike `secrets`, this **doesn't touch the source** — it reads from the VCS — so it takes no restore point and needs no revert.
+It's additive: the rest of `mutate` runs as it always does, so the run also reports whatever it captured for the staged batch.
+It needs a `vcs.token` (a PAT with read access to the module repositories); `liftoff` picks the right git username per provider, and `vcs.host` covers self-hosted providers (GitHub Enterprise, a self-managed GitLab, Bitbucket Data Center).
+Versions whose module has no VCS connection, or whose tag no longer resolves, are reported here and surfaced by [`liftoff audit`](audit.md) — never silently dropped.
 
-Pushing the captured values into the live Spacelift stacks is a separate
-finalize step (see [finalize](finalize.md)).
+Pushing the captured values into the live Spacelift stacks is a separate finalize step (see [finalize](finalize.md)).
