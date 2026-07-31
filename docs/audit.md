@@ -21,7 +21,8 @@ Findings (6)
   context-secret-missing-value (warning) (3)
     Description  A sensitive context variable with no captured value migrates as an empty secret
     Repairable   no
-    Remediation  set the values in Spacelift after the migration — variable-set secrets can't be captured
+    Remediation  stage the context and run `liftoff mutate` with a capability that captures context values (`liftoff
+                 sources` lists them), or set it in Spacelift after the migration
 
     Entities (3)
       ┌──────────┬──────────────────────┬─────────────────────────────────────────┐
@@ -78,8 +79,8 @@ Findings (6)
   stack-secret-missing-value (warning) (19)
     Description  A sensitive stack variable with no captured value migrates as an empty secret
     Repairable   no
-    Remediation  stage the stack and run `liftoff mutate --allow-mutation secrets` to capture the values, or set them in
-                 Spacelift after the migration
+    Remediation  stage the stack and run `liftoff mutate` with a capability that captures stack values (`liftoff
+                 sources` lists them), or set them in Spacelift after the migration
 
     Entities (19)
       ┌──────────┬──────────────────────┬────────────────────────────────────┐
@@ -149,6 +150,17 @@ handle after the migration.
   CUSTOM workflow tool are exempt: Spacelift has no version selector for them,
   so no version is rendered and there is nothing to reject
   ([generate](generate.md)).
+- **`vcs-integration-unbound`** is an error, and it is about your Spacelift account rather than the source.
+  A generated stack names the integration it binds to, so that a repository reaches the connection you intend rather than whichever one the account happens to treat as default.
+  This fires when nothing was bound: either the account has no integration that can serve the repository — create one and re-run discover — or it has several and none of them is the obvious answer, in which case name the one you want with the source's VCS integration key and re-run discover.
+  `liftoff configure validate` lists that key.
+- **`no-worker-available`** is an error, and also about the account.
+  Applying the generated code is itself a Spacelift run, so a migration cannot finish without a worker.
+  Having worker pools is not enough — the check looks for a pool with a worker attached that is not drained, or a usable public pool.
+  Attach a worker and re-run discover.
+- **`raw-git-missing-url`** is an error on stacks and modules tracking a raw git repository with no URL recorded.
+  Raw git names its repository outright instead of going through an integration, so without the URL there is nothing to clone and the generated block renders `REPLACE_ME`.
+  Accepting the finding at generate time is what lets that placeholder through, for you to fill in by hand.
 - **Warnings** (the empty secrets) carry over as-is; you set those values in
   Spacelift afterwards.
 - **`team-not-migrated`** is informational (a warning for the Owners team and
@@ -175,6 +187,22 @@ handle after the migration.
   attachments). Like the team finding they're account-global, have no repair, and
   re-surface every run; `--ignore-finding policy-not-migrated` (and
   `policy-set-not-migrated`) once you've recreated governance.
+- **`run-task-not-migrated`** is informational. A TFC run task calls an external
+  service around a run; Spacelift has no 1:1 equivalent, so you reconnect the
+  callout as a separately provisioned integration (a Flow or webhook pointing at
+  the same service) and wire it to the stacks that used the run task. The finding
+  names each run task and how many workspaces used it. Like the team and
+  agent-pool findings it's account-global, has no repair, and re-surfaces every
+  run; `--ignore-finding run-task-not-migrated` once you've reconnected them.
+- **`registry-provider-versions-not-migrated`** is a warning, one per staged
+  provider. Unlike the findings above, a private-registry provider *does*
+  generate — as a `spacelift_terraform_provider` definition. What doesn't carry
+  over are its published versions: those are built, signed binaries the source's
+  API never returns, so the kit migrates the definition and leaves the versions
+  to you. Re-publish them to Spacelift from the release pipeline that builds them
+  (point your existing provider-release flow at Spacelift). It needs no
+  `--ignore-finding` — warnings never block — and annotates the generated
+  provider file in place.
 
 When the results read right, apply:
 

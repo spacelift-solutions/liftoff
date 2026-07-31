@@ -40,10 +40,12 @@ its capability's revert, most recent first, and clears the point once the
 source confirms. A revert that fails is reported and kept for a retry; the
 rest still proceed.
 
-For the Terraform source's `secrets` capability, a revert puts each touched
-workspace back to its original execution mode and agent pool, and deletes
-the temporary agent pool the extraction created — those are the only
-mutations secret extraction makes.
+For the Terraform source's `secrets` capability, a revert puts each touched workspace back to its original execution mode and agent pool, and deletes the temporary agent pool the extraction created.
+
+For `context-secrets`, a revert detaches the temporary workspace from any variable set still holding it, deletes that workspace, and deletes the temporary agent pool.
+Because reverts run most-recent-first, an attachment is always undone before the workspace it points at.
+
+Those are the only mutations secret extraction makes.
 
 Once nothing is pending, re-run `liftoff mutate` and continue where you
 were.

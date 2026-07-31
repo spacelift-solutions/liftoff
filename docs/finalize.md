@@ -1,19 +1,35 @@
 # Finalize
 
-Step 11 of [the migration walkthrough](start.md): mark the staged batch
-migrated, closing the loop so the next batch starts clean.
+Step 11 of [the migration walkthrough](start.md): close out a batch — push in
+what couldn't travel as code (secrets, state, module versions), then mark the
+batch migrated so the next batch starts clean.
 
-## Step 11 — finalize the batch
+**Run the pushers before `finalize staged`.** `finalize sensitive`,
+`finalize state`, and `finalize modules` act on **staged units only**, and
+`finalize staged` is the transition that flips the batch *out of* staged. Flip
+first and the pushers find nothing to move — the stacks come up marked migrated
+holding no secrets and no state. So the order is: the pushers
+([below](#the-other-finalize-steps)), then `finalize staged` last.
+
+## The last step — finalize the batch
 
 ```bash
 liftoff finalize staged
 ```
 
-Flips every staged unit `staged → migrated` — the explicit "this batch is live
-in Spacelift now" transition. It's what lets the pipeline be iterative and
-additive: once a batch is `migrated`, the next `discover` preserves it,
-`generate` keeps its files (and **never regenerates them** — they're the
-customer's now), and `batch list` shows it as done.
+Run this **after** the pushers below. It flips every staged unit
+`staged → migrated` — the explicit "this batch is live in Spacelift now"
+transition. It's what lets the pipeline be iterative and additive: once a batch
+is `migrated`, the next `discover` preserves it, `generate` keeps its files (and
+**never regenerates them** — they're the customer's now), and `batch list` shows
+it as done.
+
+Because flipping the batch out of staged is what strands unpushed secrets and
+state, `finalize staged` **refuses** until every captured secret and state in the
+batch has been pushed. There is no override — pushing the data is the only way
+through, so the batch cannot be marked done while anything is still stranded. Run
+the pushers first (below); once each captured value has been pushed, `finalize
+staged` proceeds.
 
 ```text
 Status  migrated
@@ -58,19 +74,38 @@ liftoff configure \
 liftoff finalize sensitive
 ```
 
-Variable-set (context) secrets can't be captured, so those are reported as
-skipped rather than pushed — set them in Spacelift directly.
+Any sensitive value still empty in the store is reported as skipped rather than pushed — set those in Spacelift directly.
+Variable-set (context) secrets need `mutate --allow-mutation context-secrets` to have run; without it they arrive empty and are skipped here.
+Every skip is **named**: the report lists each skipped value (kind, id, name) and why it was skipped, so "N skipped" is never a number you have to bisect.
 
 `finalize state` pushes each staged stack's Terraform state — captured locally by
 `mutate --allow-mutation state` at cutover — into its live Spacelift stack: the
 raw state is uploaded to
 Spacelift storage, then imported onto the stack (briefly locked for the import,
 as Spacelift requires), addressed by the same name-derived id. Stacks never
-applied at the source have no state and are skipped. It needs the same Spacelift
-credentials as above:
+applied at the source have no state and are skipped — each named in the report,
+with why. It needs the same Spacelift credentials as above:
 
 ```bash
 liftoff finalize state
+```
+
+```text
+Pushed  4
+
+Skips (2)
+  ┌───────┬─────────────────────┬────────────────┬─────────────────────────────────────────────────────────────────────┐
+  │ Kind  │ Id                  │ Name           │ Reason                                                                │
+  ├───────┼─────────────────────┼────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ stack │ ws-7YopKPAktoDmhFXW │ legacy-network │ no captured state — never applied at the source, or `liftoff mutate   │
+  │       │                     │                │ --allow-mutation state` has not run                                   │
+  │ stack │ ws-RjHgP1J9E5vrpwSP │ sandbox        │ no captured state — never applied at the source, or `liftoff mutate   │
+  │       │                     │                │ --allow-mutation state` has not run                                   │
+  └───────┴─────────────────────┴────────────────┴─────────────────────────────────────────────────────────────────────┘
+
+Notes (1)
+  - 2 staged stack(s) had no captured state — never applied at the source, or `liftoff mutate --allow-mutation state`
+    has not run (a source that captures no state never will)
 ```
 
 `finalize modules` backfills each staged module's **published versions** into
@@ -101,3 +136,36 @@ The unrecoverable ones are surfaced by [`liftoff audit`](audit.md) as
 at its tag's commit.
 
 `finalize staged` above is the lifecycle transition.
+
+## Dispose of the workspace when you're done
+
+When the last batch is migrated and the estate is fully on Spacelift, one thing
+is left: the `./.liftoff/` workspace. By now it is the most sensitive artifact
+the migration produced, all of it **unencrypted on your disk**:
+
+- **`config.yaml`** — the source and Spacelift settings, including any API token
+  pasted in rather than kept as an environment reference.
+- **`liftoff.db`** — the SQLite store. It holds every captured **sensitive
+  variable value** (from `mutate --allow-mutation secrets` / `context-secrets`)
+  and every captured **Terraform state blob** (from `mutate --allow-mutation
+  state`) — the same production secrets and state your `finalize` steps just
+  pushed into Spacelift, now sitting in a plain file with no password on it.
+- **`data/generated/`** — the rendered OpenTofu. Not secret (secrets are never
+  inlined), but it describes your whole estate.
+
+Nothing about the kit protects this for you: it isn't encrypted, and the
+`.gitignore` line from [setup](setup.md#step-1--initialize-the-workspace) only
+keeps it out of git — not off backups, cloud sync, or a machine someone else can
+reach. So while a migration is in flight, keep the directory somewhere only you
+can read; once it's finished and everything is verified in Spacelift, **delete
+it**:
+
+```bash
+rm -rf .liftoff
+```
+
+There is nothing to keep — Spacelift is now the system of record, and re-running
+the kit from scratch would rebuild the workspace anyway. If your platform has a
+secure-erase tool, prefer it, since the file held live secrets and state. Never
+hand this directory to anyone as-is for support or sharing: it carries live
+production secrets and state.

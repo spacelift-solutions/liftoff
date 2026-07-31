@@ -75,6 +75,7 @@ Flying manual? Start with `liftoff --help` and [docs/start.md](docs/start.md).
 | [`github.com/spf13/cobra`](https://github.com/spf13/cobra) | Apache-2.0 | CLI command tree. |
 | [`github.com/spf13/pflag`](https://github.com/spf13/pflag) | BSD-3-Clause | POSIX flags (cobra's flag layer). |
 | [`github.com/charmbracelet/lipgloss`](https://github.com/charmbracelet/lipgloss) | MIT | Styled output on an interactive terminal. |
+| [`github.com/charmbracelet/x/ansi`](https://github.com/charmbracelet/x/ansi) | MIT | Stripping terminal colour codes from captured output before encoding. |
 | [`github.com/toon-format/toon-go`](https://github.com/toon-format/toon-go) | MIT | TOON encoding for piped (agent) output. |
 | [`gopkg.in/yaml.v3`](https://gopkg.in/yaml.v3) | MIT | Config file parsing. |
 | [`golang.org/x/sync`](https://pkg.go.dev/golang.org/x/sync) | BSD-3-Clause | Concurrency control while discovering. |

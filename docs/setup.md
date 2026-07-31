@@ -4,7 +4,36 @@ Steps 1–4 of [the migration walkthrough](start.md): scaffold the workspace,
 pick a source, set its credentials, and validate the configuration before
 anything runs.
 
+## Before you start — what you need
+
+liftoff moves an estate onto Spacelift, so it needs credentials for both ends and an account ready to receive the work.
+Have these in place before step 1:
+
+- **A Spacelift account, and an API key with root-space admin access.**
+  The account is read from the very first step, and a repository and admin stack are created later, so a narrowly scoped key fails partway through.
+- **An account on the system you are migrating from, with credentials that can read everything in scope.**
+  Each source declares exactly which keys it needs; `liftoff sources` lists them and step 4 proves them.
+- **A VCS integration in Spacelift that can reach the repositories your source uses.**
+  Generated stacks name the integration they bind to, so one has to exist for every provider in the estate.
+- **At least one worker** — a private worker pool with a worker attached, or the public pool.
+  Applying the generated code is itself a Spacelift run, so an account with no worker cannot finish a migration.
+- **Network access to both APIs** from wherever you run liftoff.
+- **A decision about where the generated code will live**: the Spacelift-managed repository, which needs no setup, or [your own git provider](publish-byo-git.md).
+
+liftoff checks the ones it can rather than leaving you to find out later.
+`liftoff configure validate` proves both key pairs, and `liftoff audit` reports a repository it cannot bind to an integration, or an account with nothing to run on, before you generate anything.
+
 ## Before you start — install liftoff
+
+**First, know which version you're meant to run.** Most operators want the
+current stable release, installed just below. But if you were pointed at a
+**release candidate** — anything ending `-rc`, or a specific pre-release version
+— **stop here and jump to [Release candidates](#release-candidates)**. The stable
+`brew install` below and the RC cask both provide the same `liftoff` command, so
+running the stable one now would replace an RC you'd already installed, quietly
+and with no warning from Homebrew. Confirm the target first; install second.
+
+If stable is what you want, install it:
 
 ```bash
 brew install spacelift-solutions/tap/liftoff
@@ -21,7 +50,9 @@ On Windows, download the zip from the
 and put `liftoff.exe` on your PATH.
 
 Either way you get one binary and nothing else — no runtime, no container, no
-services. Check it answers before going further:
+services. Check it answers **and prints the version you meant to install** before
+going further — if you were sent to a release candidate, this is where you catch
+having landed on stable instead:
 
 ```bash
 liftoff --version
@@ -98,13 +129,23 @@ current directory, one directory per migration. `--config-dir` or
 `LIFTOFF_CONFIG_DIR` relocates it, but every later command needs the same
 value.
 
-One warning: `config.yaml` will hold your source API token after step 3, and
-the store holds everything discover pulls, variable values included. If
-you are running inside a git repository, ignore the workspace now:
+One warning, and it grows over the migration: `./.liftoff/` becomes the most
+sensitive thing on this machine. `config.yaml` holds your source API token after
+step 3 (unless you kept it in an env reference), and the store — `liftoff.db`, a
+**plain, unencrypted SQLite file** — holds everything discover pulls, variable
+values included, and later the captured secret values and full Terraform **state
+blobs** the finalize steps push. Treat the directory accordingly. If you are
+running inside a git repository, ignore the workspace now:
 
 ```bash
 echo '.liftoff/' >> .gitignore
 ```
+
+That `.gitignore` line is necessary but not the whole story — it keeps the
+workspace out of git, not off backups, syncs, or a shared machine, and it does
+nothing once the migration is done and the directory should simply be gone. What
+the directory contains and how to dispose of it safely is covered at the end of
+the walkthrough, in [finalize](finalize.md#dispose-of-the-workspace-when-youre-done).
 
 Next up, `liftoff sources` to see what you can migrate from.
 
@@ -170,15 +211,28 @@ Sources (1)
       │                      │                      │          │         │ stack's version      │                      │
       └──────────────────────┴──────────────────────┴──────────┴─────────┴──────────────────────┴──────────────────────┘
 
-    Mutations (1)
-      ┌─────────┬──────────────────────────────────────────────────┬───────────────────────────────────────────────────┐
-      │ Name    │ Description                                      │ When Unset                                        │
-      ├─────────┼──────────────────────────────────────────────────┼───────────────────────────────────────────────────┤
-      │ secrets │ capture sensitive variable values via a          │ sensitive variable values come over empty; stage  │
-      │         │ temporary agent — mutates the source, always     │ the workspaces and run `liftoff mutate --allow-   │
-      │         │ reverted                                         │ mutation secrets` to capture them, or set them in │
-      │         │                                                  │ Spacelift after the migration                     │
-      └─────────┴──────────────────────────────────────────────────┴───────────────────────────────────────────────────┘
+    Mutations (4)
+      ┌─────────────────────┬────────────────────────────────────────────┬─────────────────────────────────────────────┐
+      │ Name                │ Description                                │ When Unset                                  │
+      ├─────────────────────┼────────────────────────────────────────────┼─────────────────────────────────────────────┤
+      │ secrets             │ capture sensitive variable values via a    │ sensitive variable values come over empty;  │
+      │                     │ temporary agent — mutates the source,      │ stage the workspaces and run `liftoff       │
+      │                     │ always reverted                            │ mutate --allow-mutation secrets` to capture │
+      │                     │                                            │ them, or set them in Spacelift after the    │
+      │                     │                                            │ migration                                   │
+      │ context-secrets     │ capture sensitive variable-set values via  │ sensitive variable-set values come over     │
+      │                     │ a temporary agent — creates and deletes    │ empty; run `liftoff mutate --allow-mutation │
+      │                     │ one throwaway workspace per organization,  │ context-secrets` to capture them, or set    │
+      │                     │ briefly attaches each variable set to it,  │ them on the migrated contexts in Spacelift  │
+      │                     │ always reverted                            │ afterwards                                  │
+      │ state               │ capture each staged workspace's Terraform  │ no Terraform state is captured, so `liftoff │
+      │                     │ state — reads the source, changes nothing  │ finalize state` has nothing to push and the │
+      │                     │                                            │ migrated stacks start empty                 │
+      │ module-git-versions │ resolve each published module version's    │ module versions keep no commit SHA, so      │
+      │                     │ commit SHA from its VCS — reads the        │ `liftoff finalize modules` skips them and   │
+      │                     │ repository, changes nothing                │ the private registry migrates without its   │
+      │                     │                                            │ published versions                          │
+      └─────────────────────┴────────────────────────────────────────────┴─────────────────────────────────────────────┘
 
 Next
   $ liftoff configure --source <id> --set source.<key>=value
@@ -198,14 +252,13 @@ What to take from this screen:
   step 7 and only come into play when an audit has findings to fix. You can
   set them now with everything else, and change them later by re-running
   configure.
-- **Mutations preview a later, opt-in step.** Discover never changes the
-  source; the one step that does — `liftoff mutate` — is opt-in and per run,
-  so you pass `--allow-mutation <name>` on every `mutate` that should use it,
-  which is why mutations are not config keys. The `secrets` mutation here is
-  the one worth planning for: without it, sensitive variable values come over
-  empty and you re-enter them in Spacelift afterwards; with it, `mutate`
-  captures them through a temporary agent and reverts the source when done.
-  Nothing to do now — the [mutate](mutate.md) step shows the flag.
+- **Mutations preview a later, opt-in step.**
+  Discover never changes the source; the one step that does — `liftoff mutate` — is opt-in and per run, so you pass `--allow-mutation <name>` on every `mutate` that should use it, which is why mutations are not config keys.
+  The two secret mutations are the ones worth planning for: without them, sensitive values come over empty and you re-enter them in Spacelift afterwards.
+  `secrets` covers values set on a workspace.
+  `context-secrets` covers values set on a variable set, and is separate because it makes a larger change — it creates a throwaway workspace to read them through, then deletes it.
+  Both revert the source when done.
+  Nothing to do now — the [mutate](mutate.md) step shows the flags.
 
 The decision at this step is which source you are migrating from and, if it
 is self-hosted, what its API endpoint is. Note the id and move on.
@@ -286,14 +339,27 @@ Repair Keys (used in `liftoff audit --repair`) (3)
   │                      │     │          │        │ flags each until this is set                                  │
   └──────────────────────┴─────┴──────────┴────────┴───────────────────────────────────────────────────────────────┘
 
-Mutations (1)
-  ┌─────────┬────────────────────────────────────────────────────────────────┬─────────────────────────────────────────┐
-  │ Name    │ Effect                                                         │ Enable With                             │
-  ├─────────┼────────────────────────────────────────────────────────────────┼─────────────────────────────────────────┤
-  │ secrets │ sensitive variable values come over empty; stage the           │ liftoff mutate --allow-mutation secrets │
-  │         │ workspaces and run `liftoff mutate --allow-mutation secrets`   │                                         │
-  │         │ to capture them, or set them in Spacelift after the migration  │                                         │
-  └─────────┴────────────────────────────────────────────────────────────────┴─────────────────────────────────────────┘
+Mutations (4)
+  ┌─────────────────────┬──────────────────────────────────────────────┬───────────────────────────────────────────────┐
+  │ Name                │ Effect                                       │ Enable With                                   │
+  ├─────────────────────┼──────────────────────────────────────────────┼───────────────────────────────────────────────┤
+  │ secrets             │ sensitive variable values come over empty;   │ liftoff mutate --allow-mutation secrets       │
+  │                     │ stage the workspaces and run `liftoff mutate │                                               │
+  │                     │ --allow-mutation secrets` to capture them,   │                                               │
+  │                     │ or set them in Spacelift after the migration │                                               │
+  │ context-secrets     │ sensitive variable-set values come over      │ liftoff mutate --allow-mutation context-      │
+  │                     │ empty; run `liftoff mutate --allow-mutation  │ secrets                                       │
+  │                     │ context-secrets` to capture them, or set     │                                               │
+  │                     │ them on the migrated contexts in Spacelift   │                                               │
+  │                     │ afterwards                                   │                                               │
+  │ state               │ no Terraform state is captured, so `liftoff  │ liftoff mutate --allow-mutation state         │
+  │                     │ finalize state` has nothing to push and the  │                                               │
+  │                     │ migrated stacks start empty                  │                                               │
+  │ module-git-versions │ module versions keep no commit SHA, so       │ liftoff mutate --allow-mutation module-git-   │
+  │                     │ `liftoff finalize modules` skips them and    │ versions                                      │
+  │                     │ the private registry migrates without its    │                                               │
+  │                     │ published versions                           │                                               │
+  └─────────────────────┴──────────────────────────────────────────────┴───────────────────────────────────────────────┘
 
 Next
   $ liftoff discover

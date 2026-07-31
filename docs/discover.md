@@ -25,9 +25,12 @@ Sensitive Values
   Empty                22
 
   Notes (2)
-    - 19 sensitive stack variable value(s) are empty — stage the workspaces, then run `liftoff mutate --allow-mutation
-      secrets` to capture them, or set them in Spacelift after the migration
-    - 3 sensitive context variable value(s) are empty — set them in Spacelift after the migration
+    - 19 sensitive stack variable value(s) are empty — stage the stacks, then run `liftoff mutate` with a capability
+      that captures them (`liftoff sources` lists what this source declares), or set them in Spacelift after the
+      migration
+    - 3 sensitive context variable value(s) are empty — stage the contexts, then run `liftoff mutate` with a capability
+      that captures them (`liftoff sources` lists what this source declares), or set them in Spacelift after the
+      migration
 
 Counts
   Context Variables  6
@@ -38,15 +41,19 @@ Counts
   Stack Variables    41
   Stacks             13
 
+Spacelift Counts
+  VCS Integrations  4
+  Worker Pools      1
+  Workers           0
+
 Next
   $ liftoff batch list
 ```
 
 `Counts` is what actually landed in the store, read back after the run.
-`Sensitive Values` is the report on the one thing discover cannot take: secret
-values. Discover **never touches the source**, so sensitive values always come
-over empty — the notes say exactly what that means and how to capture them later
-(stage the workspaces, then [`liftoff mutate`](mutate.md)).
+`Spacelift Counts` is the other end of the pipe: what your Spacelift account has, which discover reads before it touches the source.
+`Sensitive Values` is the report on the one thing discover cannot take: secret values.
+Discover **never touches the source**, so sensitive values always come over empty — the notes say exactly what that means and how to capture them later (stage what you want, then [`liftoff mutate`](mutate.md)).
 
 Discover is deliberately whole-estate and read-only: you can't choose what to
 migrate until you can see everything, and pulling it all is safe because nothing
@@ -56,6 +63,9 @@ you stage.
 
 Two behaviors worth knowing:
 
+- **Discover reads your Spacelift account first, before it touches the source.**
+  It records the VCS integrations and worker pools the account has, so a bad Spacelift key pair fails here rather than after a long walk through the estate, and the stacks it discovers can be bound to the integration that actually serves each repository.
+  This is why the destination credentials are required from this step onward, not only at deploy time.
 - **Running discover again is always safe.** When there's nothing new it says so
   and changes nothing; it never resets the staging choices you've made. The
   `liftoff discover --clobber` hint it offers is the start-fresh option, colored
@@ -63,13 +73,14 @@ Two behaviors worth knowing:
 - **Re-discovering after migrating a batch is additive.** It refreshes entity
   data, skips nothing you've staged or migrated, and picks up new source
   entities — so the next batch starts from a current picture.
-- **Teams, agent pools, and policies come over as audit-only data.** Discover
-  records your TFC teams (and their access), agent pools, and policies and policy
-  sets, but the kit never generates from them — TFC RBAC doesn't map 1:1 onto
-  Spacelift, a worker pool is stood up separately, and policy bodies are Rego in
-  Spacelift (a different language from Sentinel/OPA) so they don't translate
-  automatically. [`audit`](audit.md) surfaces each so you can recreate them
-  deliberately; nothing is placed in a space.
+- **Teams, agent pools, policies, and run tasks come over as audit-only data.**
+  Discover records your TFC teams (and their access), agent pools, policies and
+  policy sets, and run tasks, but the kit never generates from them — TFC RBAC
+  doesn't map 1:1 onto Spacelift, a worker pool is stood up separately, policy
+  bodies are Rego in Spacelift (a different language from Sentinel/OPA) so they
+  don't translate automatically, and a run task's external callout is reconnected
+  as a separately provisioned integration. [`audit`](audit.md) surfaces each so
+  you can recreate them deliberately; nothing is placed in a space.
 
 From here, no command touches the network until the module is handed to
 Spacelift: [batch](batch.md), [audit](audit.md), and [generate](generate.md)

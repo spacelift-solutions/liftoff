@@ -4,8 +4,7 @@ This is the walkthrough `liftoff --help` points at. It goes through a
 migration step by step: the command to run, what the output looks like, and
 what to decide before moving on. Each stage has its own page:
 
-1. **[Set up and configure](setup.md)** — install `liftoff`, init the workspace,
-   pick a source, set credentials, validate before running anything (steps 1–4).
+1. **[Set up and configure](setup.md)** — what you need before you start, then install `liftoff`, init the workspace, pick a source, set credentials, and validate before running anything (steps 1–4).
 2. **[Discover](discover.md)** — pull the whole estate into the local store,
    read-only (step 5).
 3. **[Batch](batch.md)** — list what's there and stage the units to migrate in
@@ -112,7 +111,7 @@ opt-in and always reverted). Everything else reads the local store.
 | 7    | `liftoff audit [--repair]`                  | the store, under `--repair` only              |
 | 8    | `liftoff generate`                          | the OpenTofu module (staged ∪ migrated)       |
 | 9    | `liftoff publish`                           | Spacelift (managed repo + admin stack)        |
-| 10   | `liftoff mutate --allow-mutation secrets`   | the store (captured secrets; source reverted) |
+| 10   | `liftoff mutate --allow-mutation <name>`    | the store (captured secrets; source reverted) |
 | 11   | `liftoff finalize staged`                   | the store (batch → migrated)                  |
 | ↻    | back to `liftoff discover` for the next batch | —                                           |
 

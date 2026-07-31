@@ -6,43 +6,65 @@ source for something other than reading its estate. Each is a **capability the
 configured source declares**, each is opt-in, and nothing runs unless you name
 it — so this step runs late, only for the batch you've committed to.
 
-Run `liftoff sources` to see what the configured source offers. Terraform
-Cloud/Enterprise declares three: `secrets`, `state`, and `module-git-versions`.
+Run `liftoff sources` to see what the configured source offers.
+Terraform Cloud/Enterprise declares four: `secrets`, `context-secrets`, `state`, and `module-git-versions`.
 
 ## Step 10 — capture the staged batch's secrets and state
 
 ```bash
-liftoff mutate --allow-mutation secrets --allow-mutation state
+liftoff mutate --allow-mutation secrets --allow-mutation context-secrets --allow-mutation state
 ```
 
-The source masks sensitive values, so discover left them empty. `mutate`
-recovers them for the **staged workspaces only**: it reads the batch back from
-the local store, briefly registers a temporary agent, flips each staged
-workspace to it to read the plaintext values, fills them into the store, and
-**restores every workspace before finishing**. The captured values live only in
-the local store — never logged, never printed (it reports counts, never values).
+The source masks sensitive values, so discover left them empty.
+`mutate` recovers them for the **staged batch only**, and the two kinds of secret are separate opt-ins because they change different amounts at the source.
+
+**`secrets`** covers values set on a workspace: it reads the batch back from the local store, briefly registers a temporary agent, flips each staged workspace to it to read the plaintext values, fills them into the store, and **restores every workspace before finishing**.
+
+**`context-secrets`** covers values set on a variable set, which no real workspace can be trusted to reveal — a workspace variable of the same name takes precedence, so a value read there might not be the set's.
+Instead it creates **one throwaway workspace per organization** with no variables of its own, attaches each staged variable set to it in turn, reads the plaintext, then detaches and deletes the workspace.
+Your real workspaces are never touched, and a variable set never loses an attachment it already had.
+A variable set that applies organization-wide is never attached at all, since it already applies.
+
+Captured values live only in the local store — never logged, never printed (it reports counts, never values).
 
 ```text
 Source  terraform
 
 Sensitive Values
   Sensitive Variables  22
-  Captured             6
-  Empty                16
+  Captured             9
+  Empty                13
 
-  Notes (2)
-    - 13 sensitive stack variable value(s) are empty — stage the workspaces, then run `liftoff mutate --allow-mutation
-      secrets` to capture them, or set them in Spacelift after the migration
-    - 3 sensitive context variable value(s) are empty — set them in Spacelift after the migration
+  Notes (1)
+    - 13 sensitive stack variable value(s) are empty — stage the stacks, then run `liftoff mutate` with a capability
+      that captures them (`liftoff sources` lists what this source declares), or set them in Spacelift after the
+      migration
+
+Capabilities
+  context-secrets
+    Captured  3
 
 Next
+  $ liftoff finalize sensitive
+  $ liftoff finalize state
   $ liftoff finalize staged
 ```
 
-`Captured` is what this run filled for the staged workspaces; the counts that
-remain `Empty` are for workspaces you haven't staged (stage and re-run to capture
-them) and for **context/variable-set secrets, which the agent protocol cannot
-reach** — set those in Spacelift after the migration.
+**Run the finalize pushers before `finalize staged`, in that order.** The pushers
+(`finalize sensitive`, `finalize state`) act on **staged units only**, and
+`finalize staged` is the transition that flips the batch *out of* staged (to
+migrated). Flip first and the pushers find nothing to push — the stacks come up
+marked migrated but holding no secrets and no state, with no error to tell you.
+So push, then flip: `finalize staged` refuses until every captured secret and
+state in the batch has been pushed — pushing them is the only way through.
+(`finalize modules` belongs to the same before-`staged` window when you captured
+module versions — see below.)
+
+`Captured` is what this run filled for the staged batch; the counts that remain `Empty` are for units you haven't staged — stage them and re-run to capture those too.
+
+A value can also stay empty when it cannot be attributed to one owner.
+If an organization-wide variable set and a staged one both define the same name, only one value reaches the run, so the kit reports the collision and leaves that variable empty rather than risk storing the wrong secret.
+Set those in Spacelift directly.
 
 A few things worth knowing:
 
