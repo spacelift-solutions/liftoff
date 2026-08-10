@@ -416,7 +416,8 @@ done
 
 Where you push matters.
 On Spacelift's **public** worker pool the image must be public, and only these registries are accepted: `public.ecr.aws`, `dkr.ecr.<region>.amazonaws.com`, `docker.io`, `registry.hub.docker.com`, `ghcr.io`, `gcr.io`, `docker.pkg.dev`, `azurecr.io`, `quay.io`, `registry.gitlab.com`.
-A **private** image requires a private worker pool — the public pool caches images across accounts, so it only ever pulls public ones.
+A **private** image requires a private worker pool: the public pool caches images across accounts, so it only ever pulls public ones.
+`liftoff audit` checks this rather than leaving you to find out from a run that never starts: a stack heading for the public pool with an image from anywhere else is an error, `runner-image-not-pullable` ([audit](audit.md)).
 
 Then point the setting at the **untagged** name and repair:
 

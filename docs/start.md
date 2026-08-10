@@ -8,6 +8,7 @@ Each stage has its own page:
 2. **[Discover](discover.md)** — pull the whole estate into the local store, read-only (step 5).
 3. **[Batch](batch.md)** — list what's there and stage the units to migrate in this batch (step 6).
 4. **[Audit](audit.md)** — findings over the staged set, repair keys, `--repair` (step 7).
+   **[Model](model.md)** — read the local store, and correct a value `--repair` cannot (any time).
 5. **[Generate](generate.md)** — render the OpenTofu module for the batch (step 8).
 6. **[Deploy](deploy.md)** — hand the module to Spacelift and apply it (step 9).
 7. **[Mutate](mutate.md)** — capture the staged workspaces' secret values, the one step that touches the source again (step 10).
@@ -22,6 +23,7 @@ Tell it to run that first.
 ## Driving this as an agent
 
 These pages are your operating manual, not background reading.
+Before anything else, make sure the model driving this is up to it: a migration that only *looks* like it worked is the failure mode that matters, and [Choosing a model](models.md) says what a model has to be capable of and what goes wrong when it isn't.
 Three rules bind every agent-driven migration:
 
 **Follow the walkthrough to the letter.**
@@ -39,9 +41,13 @@ A migration the user watched happen is a migration they can trust.
 Reading a page with `liftoff skills <topic>` prints a **proof token** at the end of it.
 Pass that back as `--proof-token` on the command that asked for it and the step proceeds.
 That is all it is: evidence you fetched the guidance instead of guessing at it.
+So read the page, don't harvest the token out of it.
+`liftoff skills <topic> | tail` hands you a token with the guidance nowhere in your context, which is the one thing the token is meant to rule out; run it unfiltered.
 
 Anything that changes the source needs the user's approval, and that is the one thing you cannot supply.
 `liftoff` refuses to record an approval when it can tell an assistant is driving — only a person, in their own terminal, can give it.
+"Their own terminal" means exactly that: a shell escape from inside your session — a `!`-prefixed command in Claude Code, or any command you run for the user — runs in your process tree, so `liftoff` still sees the agent and refuses it, however directly the user typed it.
+Don't recommend `! liftoff approve …`; it fails every time.
 So:
 
 1. **Attempt the step.**
@@ -58,7 +64,7 @@ You will not have to guess when that happens — the step refuses again, names w
 
 **Stay inside the CLI.**
 `liftoff` is the whole surface.
-Don't open the workspace SQLite store yourself — `status` and `audit` are how you inspect it — and don't call the source's or Spacelift's APIs on the side, not to verify a token (`configure validate` covers it), not to double-check a revert (`mutate` refuses to run while one is pending; `restore` is the recovery path).
+Don't open the workspace SQLite store yourself — `liftoff model` reads every entity in it, and `status` and `audit` summarise it — and don't call the source's or Spacelift's APIs on the side, not to verify a token (`configure validate` covers it), not to double-check a revert (`mutate` refuses to run while one is pending; `restore` is the recovery path).
 Manual SQL or direct API calls happen only when the user explicitly asks for them.
 
 One output note: piped output is already TOON — never scrape the styled terminal view, and if a command ever prints styled tables (your harness gave it a TTY), add `--output toon`.
@@ -110,7 +116,7 @@ When in doubt, run the command again.
 - **`liftoff restore`** — put the source back if a `mutate` run was interrupted before it finished reverting.
   Almost never needed; when it is, `mutate` refuses to run and points you here.
   Details in [restore.md](restore.md).
-- **`liftoff skills [topic]`** — print the guidance page for a topic (`start`, `setup`, `discover`, `batch`, `audit`, `generate`, `deploy`, `publish-byo-git`, `mutate`, `finalize`, `restore`), plus anything source-specific.
+- **`liftoff skills [topic]`** — print the guidance page for a topic (`start`, `models`, `setup`, `discover`, `batch`, `audit`, `model`, `generate`, `deploy`, `publish-byo-git`, `mutate`, `finalize`, `restore`), plus anything source-specific.
   Built for agents; the content is these pages, starting with this one.
 
 ## When something goes wrong

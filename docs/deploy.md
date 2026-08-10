@@ -55,6 +55,7 @@ liftoff publish --confirm --proof-token <token from the plan>
 The token covers that one plan — the run, the commit it planned, and the resource counts.
 Re-generate, publish again, or let anything else change what would apply, and the old token is refused; you read the new plan and use its new token.
 It is the same guarantee as handing `tofu apply` a saved plan file, and the reason an agent cannot apply a plan it never read.
+Which means publish's output is the thing you are proving you read: filtering it down to the token leaves you approving a plan you never saw.
 
 Reading the plan is only half of it.
 Applying also needs a person to approve it, and that approval is not something an assistant can supply — the refusal names the command to run.

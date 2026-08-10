@@ -77,6 +77,12 @@ To migrate them, name them.
 
 Note that `unstage` is not the mirror image of this: it cascades downward, so unstaging a space *does* take the stacks in it (below).
 
+**Re-staging a migrated unit needs a person's approval.**
+Staging normally moves an `unstaged` unit into the batch and is ungated.
+But if the cascade would pull back a unit you've already *migrated*, staging drops it out of `migrated` — and the next [`generate`](generate.md) then rewrites its file, losing any hand-edits you made to it.
+So that case asks a person to approve first, and the ask names every migrated unit the cascade touches (not just the one you typed) with why it came along, so you're approving the real blast radius.
+Staging fresh units is unaffected.
+
 ## `liftoff batch unstage` — change your mind
 
 ```bash

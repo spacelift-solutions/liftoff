@@ -32,7 +32,8 @@ Findings (6)
   missing-vcs-branch (error) (6)
     Description  A stack or module tracking its repo's default branch needs an explicit one in Spacelift
     Repairable   yes
-    Remediation  writes the `default_branch` repair key, or `main` when unset
+    Remediation  set `liftoff configure --set source.default_branch=…` and run `liftoff audit --repair` to fill
+                 every affected stack, or change one with `liftoff model set stack:<id> vcs.branch=…`
     Result       main
 
     Entities (6)
@@ -47,7 +48,8 @@ Findings (6)
   module-missing-workflow-tool (error) (1)
     Description  A module needs a workflow tool; the source carries none per module
     Repairable   yes
-    Remediation  writes the `module_workflow_tool` repair key (`TERRAFORM_FOSS`, `OPEN_TOFU`, or `CUSTOM`), or `--set module:<id>.workflow_tool=<tool>`
+    Remediation  set `liftoff configure --set source.module_workflow_tool=…` and run `liftoff audit --repair` to
+                 fill every affected module, or change one with `liftoff model set module:<id> workflow_tool=…`
     Result       nothing — `module_workflow_tool` is unset or invalid
 
     Entities (1)
@@ -59,20 +61,19 @@ Findings (6)
 
   stack-missing-vcs-repository (error) (3)
     Description  A stack without a VCS repository cannot be created in Spacelift
-    Repairable   yes
-    Remediation  pass --set stack:<id>.vcs.repository=<name> on `liftoff audit --repair` (add vcs.namespace /
-                 vcs.branch / vcs.provider as needed), attach the stack to a repository at the source and re-discover,
-                 or unstage this stack to leave it out of the batch
-    Result       nothing — pass --set stack:<id>.vcs.repository=…
+    Repairable   no
+    Remediation  change one with `liftoff model set stack:<id> vcs.repository=…` (vcs.namespace, vcs.branch,
+                 vcs.provider the same way); attach the stack to a repository at the source and re-discover, or
+                 unstage this stack to leave it out of the batch
 
     Entities (3)
-      ┌───────┬─────────────────────┬───────────────────────────────────┬────────────────────────────────────────────────────┐
-      │ Kind  │ Id                  │ Name                              │ Result                                             │
-      ├───────┼─────────────────────┼───────────────────────────────────┼────────────────────────────────────────────────────┤
-      │ stack │ ws-axzQMYTKvuxA9VDQ │ this-is-a-test-workspace          │ nothing — pass --set stack:ws-axzQMYTKvuxA9VDQ.… │
-      │ stack │ ws-jo93LkzmNb6bK6Ga │ test                              │ nothing — pass --set stack:ws-jo93LkzmNb6bK6Ga.… │
-      │ stack │ ws-oxRaEDV2f5uMHy5f │ my-amazing-workspace-local-no-vcs │ nothing — pass --set stack:ws-oxRaEDV2f5uMHy5f.… │
-      └───────┴─────────────────────┴───────────────────────────────────┴────────────────────────────────────────────────────┘
+      ┌───────┬─────────────────────┬───────────────────────────────────┐
+      │ Kind  │ Id                  │ Name                              │
+      ├───────┼─────────────────────┼───────────────────────────────────┤
+      │ stack │ ws-axzQMYTKvuxA9VDQ │ this-is-a-test-workspace          │
+      │ stack │ ws-jo93LkzmNb6bK6Ga │ test                              │
+      │ stack │ ws-oxRaEDV2f5uMHy5f │ my-amazing-workspace-local-no-vcs │
+      └───────┴─────────────────────┴───────────────────────────────────┘
 
   stack-secret-missing-value (warning) (19)
     Description  A sensitive stack variable with no captured value migrates as an empty secret
@@ -110,11 +111,14 @@ Next
   $ liftoff configure --set source.default_branch=…
   $ liftoff configure --set source.module_workflow_tool=…
   $ liftoff audit
-  $ liftoff audit --repair --set stack:ws-axzQMYTKvuxA9VDQ.vcs.repository=… --set stack:ws-jo93LkzmNb6bK6Ga.vcs.repository=… --set stack:ws-oxRaEDV2f5uMHy5f.vcs.repository=…
+  $ liftoff audit --repair
+  $ liftoff model set stack:ws-axzQMYTKvuxA9VDQ vcs.repository=…
+  $ liftoff model set stack:ws-jo93LkzmNb6bK6Ga vcs.repository=…
+  $ liftoff model set stack:ws-oxRaEDV2f5uMHy5f vcs.repository=…
 ```
 
 Findings group by rule.
-Each group reads top to bottom: what the finding means, whether `--repair` can fix it, what the fix does, `Result` — the exact value a repair would write right now, resolved against your config and any `--set` targets — and the entities affected.
+Each group reads top to bottom: what the finding means, whether `--repair` can fix it, what the fix does, `Result` (the exact value a repair would write right now, resolved against your config), and the entities affected.
 When each entity would get a different value, `Result` moves onto the entity rows.
 Errors block a clean generation; warnings are things to handle after the migration.
 
@@ -129,10 +133,10 @@ Errors block a clean generation; warnings are things to handle after the migrati
   Point the key at an image you have tagged yourself, or pin a plain version on the source and re-discover.
   `stacks-default-public-worker-pool` is a warning on the same pattern: when the account has private worker pools, stacks without a pool set will generate onto the public one — set `worker_pool_id` to a recorded private pool id and `--repair` writes it ([setup](setup.md), [generate](generate.md)).
   On an account with no public pool it is an error instead, since an unbound stack would have nothing to run on.
-- **Per-entity repairs** use `--set kind:source_id.field=value` on `liftoff audit` (preview) or `liftoff audit --repair` (write).
-  Use these when a shared config key would be wrong — `stack-missing-vcs-repository` is the worked example: each VCS-less stack needs its own repository, so there is no `default_repository` key.
-  Pass one `--set` per stack (and `vcs.namespace` / `vcs.branch` / `vcs.provider` as companions when you know them).
-  A target wins over the estate-wide key for that entity; an unused target is an error so a typo cannot look successful.
+- **Per-entity fixes** use [`liftoff model set`](model.md), which names the entities itself.
+  Reach for it when a shared config key would be wrong — `stack-missing-vcs-repository` is the worked example: each VCS-less stack needs its own repository, so there is no `default_repository` key and the finding is not `repairable` at all.
+  It is also the only way to change a value that is **already there**, which `--repair` never touches: a stale namespace after an account rename is corrected here, not by a repair key.
+  Name several entities in one command when the same correction applies to all of them, and add `vcs.namespace` / `vcs.branch` / `vcs.provider` as companions when you know them.
 - **Unrepairable errors** are fix-at-the-source problems: accept them explicitly at generate time with `--ignore-finding` (renders the stacks annotated for hand-editing), or `unstage` the offending units to leave them out of the batch ([generate](generate.md), [batch](batch.md)).
   `stack-version-unsupported-syntax` is one of these: the source reported a version Spacelift turns down, so the stack would fail when the admin stack applies.
   Exact versions and constraints both carry over — `1.5.7`, `1.5`, `>= 1.0.0`, `~> 1.5.0` are all fine — but `latest`, a version with a fourth segment, and anything that is neither are rejected.
@@ -147,9 +151,21 @@ Errors block a clean generation; warnings are things to handle after the migrati
   Applying the generated code is itself a Spacelift run, so a migration cannot finish without a worker.
   Having worker pools is not enough — the check looks for a private pool with a worker attached that is not drained, or the public pool (assumed runnable without inspecting workers).
   Attach a worker and re-run discover.
+- **`runner-image-not-pullable`** is an error, and it is the other half of the worker-pool question: not which pool a stack lands on, but whether that pool can obtain the image the stack needs.
+  A stack landing on the public pool can only run a public image, from one of the registries Spacelift accepts there ([setup](setup.md) lists them): that pool caches images across accounts, so a private image is private-pool only.
+  The finding names the registry host rather than the whole reference, because the host is the thing that has to change; a tag or a digest makes no difference to whether the image can be pulled.
+  Point `runner_image` at a registry on that list, or take the stack off the public pool with `worker_pool_id`.
+  Both go through [`liftoff model set`](model.md), since each value is already populated and `--repair` never overwrites one.
+  On an account that has private pools, setting `worker_pool_id` as a repair key and re-running `liftoff audit --repair` moves every unassigned stack at once.
+  A stack with no runner image at all belongs to `custom-workflow-missing-runner-image` instead, so the two never report the same stack.
 - **`raw-git-missing-url`** is an error on stacks and modules tracking a raw git repository with no URL recorded.
   Raw git names its repository outright instead of going through an integration, so without the URL there is nothing to clone and the generated block renders `REPLACE_ME`.
   Accepting the finding at generate time is what lets that placeholder through, for you to fill in by hand.
+- **`module-invalid-provider`** is an error, one per staged module whose provider Spacelift will not accept.
+  A module is addressed by its registry address (`terraform-<provider>-<name>`), so the provider is part of its identity rather than a label on it, and only letters, digits and underscores are allowed there.
+  A provider carrying anything else (a dash or a dot, say) is rejected when the admin stack applies, long after generate, which is why it is caught here instead.
+  Rename it at the source and re-discover, or change one with `liftoff model set`.
+  A module with no provider recorded is fine: the argument is omitted and Spacelift substitutes its own default.
 - **`vcs-namespace-unreachable`** is an error, one per stack or module, and it is the check that catches a repository your integration cannot actually see.
   Being bound to an integration of the right kind only proves such an integration exists — not that it is connected to the account your code lives under.
   A GitHub App is installed on specific accounts, and an Azure DevOps connection can be limited to specific projects, so a stack under an account the integration was never installed on fails when the admin stack applies, long after generate.
@@ -192,11 +208,12 @@ When the results read right, apply:
 
 ```bash
 liftoff configure --set source.module_workflow_tool=OPEN_TOFU
-liftoff audit --repair \
-  --set stack:ws-oxRaEDV2f5uMHy5f.vcs.repository=my-repo \
-  --set stack:ws-oxRaEDV2f5uMHy5f.vcs.namespace=acme \
-  --set stack:ws-oxRaEDV2f5uMHy5f.vcs.branch=main \
-  --set stack:ws-oxRaEDV2f5uMHy5f.vcs.provider=GITHUB
+liftoff audit --repair
+liftoff model set stack:ws-oxRaEDV2f5uMHy5f \
+  vcs.repository=my-repo \
+  vcs.namespace=acme \
+  vcs.branch=main \
+  vcs.provider=GITHUB
 ```
 
 `--repair` writes each rule's fix to the local store — never the source — and returns receipts.
@@ -207,8 +224,10 @@ Findings always show what *remains*:
 Findings (5)
   stack-missing-vcs-repository (error) (2)
     Description  A stack without a VCS repository cannot be created in Spacelift
-    Repairable   yes
-    Remediation  pass --set stack:<id>.vcs.repository=<name> on `liftoff audit --repair` …
+    Repairable   no
+    Remediation  change one with `liftoff model set stack:<id> vcs.repository=…` (vcs.namespace, vcs.branch,
+                 vcs.provider the same way); attach the stack to a repository at the source and re-discover, or
+                 unstage this stack to leave it out of the batch
 
     Entities (2)
       ┌───────┬─────────────────────┬──────────────────────────┐
@@ -233,16 +252,15 @@ Repaired (10)
   │ missing-vcs-branch           │ stack       │ ws-RjHgP1J9E5vrpwSP  │ vcs.branch     │ main      │
   │ …                            │ …           │ …                    │ …              │ …         │
   │ module-missing-workflow-tool │ module      │ mod-AJu96tYoVyzKPEjw │ workflow_tool  │ OPEN_TOFU │
-  │ stack-missing-vcs-repository │ stack       │ ws-oxRaEDV2f5uMHy5f  │ vcs.repository │ my-repo   │
-  │ stack-missing-vcs-repository │ stack       │ ws-oxRaEDV2f5uMHy5f  │ vcs.namespace  │ acme      │
   │ …                            │ …           │ …                    │ …              │ …         │
   └──────────────────────────────┴─────────────┴──────────────────────┴────────────────┴───────────┘
 
 Next
-  $ liftoff audit --repair --set stack:ws-axzQMYTKvuxA9VDQ.vcs.repository=… --set stack:ws-jo93LkzmNb6bK6Ga.vcs.repository=…
+  $ liftoff model set stack:ws-axzQMYTKvuxA9VDQ vcs.repository=…
+  $ liftoff model set stack:ws-jo93LkzmNb6bK6Ga vcs.repository=…
 ```
 
-One VCS-less stack was repaired in place; the other two still need a `--set`, a fix at the source and re-discover, `unstage`, or `--ignore-finding`.
+The third VCS-less stack was fixed with `liftoff model set` before this run; the other two still need one, a fix at the source and re-discover, `unstage`, or `--ignore-finding`.
 Everything else — the repaired branches and module tool, the warnings — is ready to render.
 
 Worth knowing:
@@ -250,9 +268,10 @@ Worth knowing:
 - **Repair is idempotent and local.**
   Re-running `--repair` writes nothing new, and a re-discover overwrites repairs — just repair again after.
 - **`--rule` scopes a run** to named rules (repeatable): `liftoff audit --repair --rule missing-vcs-branch`.
-- **`--set kind:id.field=value` targets one entity.**
-  Estate-wide repair keys (`source.default_branch`, …) still apply to every matching gap; a `--set` for the same field on one entity wins for that entity only.
-  Preview with `liftoff audit --set …` (Result updates, store unchanged), then add `--repair` to write.
+- **One entity at a time is [`liftoff model set`](model.md), not a flag here.**
+  `audit --repair` is the estate-wide fix: it applies a config key everywhere it fits and only ever fills what is empty.
+  `model set` names the entities and is the only thing that can change a value that is already populated.
+  The `Next` commands after an audit name whichever of the two each finding needs.
 - **`--acknowledge-finding` quiets a reviewed warning or info finding in the listing** (`rule` or `rule:entity-id`, repeatable).
   The acknowledgement is persisted in the store, so later audit and generate runs omit it from the active list (it still appears under `acknowledged`).
   Generated code still carries the `# WARNING:` / `# INFO:` comment.

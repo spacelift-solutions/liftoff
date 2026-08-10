@@ -14,8 +14,16 @@ liftoff finalize staged
 ```
 
 Run this **after** the pushers below.
-It flips every staged unit `staged → migrated` — the explicit "this batch is live in Spacelift now" transition.
+It flips every staged unit `staged → migrated` — the explicit "this batch is live in Spacelift now" transition, and the batch-closing one: it declares the batch done.
 It's what lets the pipeline be iterative and additive: once a batch is `migrated`, the next `discover` preserves it, `generate` keeps its files (and **never regenerates them** — they're the customer's now), and `batch list` shows it as done.
+
+**Treat this as a one-way door.** Once it flips, for that batch:
+
+- `generate` stops rewriting its entity files (they're yours to hand-edit — see [generate](generate.md#additive-across-batches-migrated-files-are-yours)),
+- the batch drops out of the staged set, so it no longer appears in `batch list` as stageable, and
+- the pushers (`finalize sensitive`, `finalize state`, `finalize modules`) no longer act on it — they touch staged units only.
+
+That last point is why the ordering above is not optional: run every pusher you need **first**, because after `finalize staged` there is no pusher left that will move this batch's secrets, state, or module versions. Re-staging a migrated unit is possible but takes a person's approval and names the full blast radius (see [batch](batch.md)); it is the deliberate exception, not the undo button.
 
 Because flipping the batch out of staged is what strands unpushed secrets and state, `finalize staged` **refuses** until every captured secret and state in the batch has been pushed.
 There is no override — pushing the data is the only way through, so the batch cannot be marked done while anything is still stranded.
@@ -96,11 +104,11 @@ liftoff finalize modules
 ```
 
 ```text
-Created 5
-Skipped 1
+Created  1
+Skipped  0
 
-Notes
-  1 version(s) had no resolved commit SHA — run `liftoff mutate --allow-mutation module-git-versions`, or see `liftoff audit` for the unmigratable ones
+Next
+  $ liftoff finalize staged
 ```
 
 A version is `Skipped` when its commit SHA was never resolved — either you haven't run the `module-git-versions` mutation yet, or the SHA couldn't be recovered (the module has no VCS connection, or its tag no longer resolves).

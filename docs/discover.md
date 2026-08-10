@@ -61,9 +61,15 @@ Two behaviors worth knowing:
   It records the VCS integrations and worker pools the account has, so a bad Spacelift key pair fails here rather than after a long walk through the estate, and the stacks it discovers can be bound to the integration that actually serves each repository.
   Where an account has more than one integration a repository could use, discover picks the one connected to the account or project that repository lives under, preferring a working integration over a broken one — so two GitHub Apps on the same host no longer need you to choose between them by hand.
   This is why the destination credentials are required from this step onward, not only at deploy time.
-- **Running discover again is always safe.**
-  When there's nothing new it says so and changes nothing; it never resets the staging choices you've made.
+- **Running discover again is always safe — and it always re-reads your Spacelift account.**
+  When there's nothing new in the source it says so and changes nothing (`note: nothing to discover…`); it never resets the staging choices you've made.
+  But it still reads the destination first every time, and that is deliberate: the estate is cached in the store, the destination is not, because the destination can change while you work — and either way the read is read-only.
+  A re-run's `Spacelift Counts` is a fresh look, not the cached one, so it catches the account moving underneath the migration.
+  In practice that matters: `publish` creating the managed repository's VCS integration takes the account's integration count up by one between batches, and a re-discover is what notices, rather than binding the next batch's stacks against a stale inventory.
   The `liftoff discover --clobber` hint it offers is the start-fresh option, colored as a caution because it throws away the local results *and* your staging.
+  Because clobber discards captured secret values and state — the work an approved, source-mutating [`mutate`](mutate.md) run went and got — it now asks a person to approve it, and the ask counts exactly what will be lost (captured sensitive values, captured state blobs, staged units, migrated units) so you approve a real number, not a warning.
+  A workspace with nothing captured or staged still asks, but says the loss is nothing.
+  One caveat it names for you: clobber resets the store, not the files you've already generated, so after a migrated batch those files stay on disk describing an estate the re-discover no longer matches — re-generate, or clobber the output too, to keep them in step.
 - **Re-discovering after migrating a batch is additive.**
   It refreshes entity data, skips nothing you've staged or migrated, and picks up new source entities — so the next batch starts from a current picture.
 - **Teams, agent pools, policies, and run tasks come over as audit-only data.**
