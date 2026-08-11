@@ -34,7 +34,7 @@ That's the option for a machine where no browser can open; you open the printed 
 
 ## The URL is a credential
 
-Actions taken in the UI count as *you* acting: steps that normally stop and ask for a person (approvals, consent to destructive operations) treat a click in the UI the way they treat you running the command in your terminal.
+Actions taken in the UI count as _you_ acting: steps that normally stop and ask for a person (approvals, consent to destructive operations) treat a click in the UI the way they treat you running the command in your terminal.
 The URL carries the session token that makes that true, so treat it like a password: don't share it, don't paste it anywhere, and don't hand it to an AI agent.
 Each run mints a fresh token; stopping `liftoff ui` invalidates its URL.
 

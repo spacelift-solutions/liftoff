@@ -182,7 +182,7 @@ Errors block a clean generation; warnings are things to handle after the migrati
   It fires when Spacelift could not reach the integration at all when discover last looked — the app was deleted, its credentials no longer work, or a VCS agent pool it routes through is unreachable.
   The finding names the status Spacelift reported, which is the clue to which repair is needed.
   Repair the integration in Spacelift and re-run discover.
-  This is independent of the namespace check, so an integration that is both broken *and* connected to the wrong account reports both — they need different fixes.
+  This is independent of the namespace check, so an integration that is both broken _and_ connected to the wrong account reports both — they need different fixes.
 - **Warnings** (the empty secrets) carry over as-is; you set those values in Spacelift afterwards.
 - **`team-not-migrated`** is informational (a warning for the Owners team and any team holding org-level `manage-*`, otherwise info).
   TFC teams don't map 1:1 onto Spacelift's space-scoped, IdP-group-bound access, so the kit lists each team and its access instead of generating a grant it can't get right — you recreate access in Spacelift by mapping each team to an IdP group and attaching a role.
@@ -203,7 +203,7 @@ Errors block a clean generation; warnings are things to handle after the migrati
   The finding names each run task and how many workspaces used it.
   Like the team and agent-pool findings it's account-global, has no repair, and re-surfaces every run; `--acknowledge-finding run-task-not-migrated` once you've reconnected them.
 - **`registry-provider-versions-not-migrated`** is a warning, one per staged provider.
-  Unlike the findings above, a private-registry provider *does* generate — as a `spacelift_terraform_provider` definition.
+  Unlike the findings above, a private-registry provider _does_ generate — as a `spacelift_terraform_provider` definition.
   What doesn't carry over are its published versions: those are built, signed binaries the source's API never returns, so the kit migrates the definition and leaves the versions to you.
   Re-publish them to Spacelift from the release pipeline that builds them (point your existing provider-release flow at Spacelift).
   Warnings never block; they annotate the generated provider file in place (acknowledgement only quiets the audit listing).
@@ -222,7 +222,7 @@ liftoff model set stack:ws-oxRaEDV2f5uMHy5f \
 
 `--repair` writes each rule's fix to the local store — never the source — and returns receipts.
 Findings that were advertised `repairable` but could not be applied land in `skips[]` with a per-entity reason (the same shape `finalize state` uses), so a silent pass never looks like success.
-Findings always show what *remains*:
+Findings always show what _remains_:
 
 ```text
 Findings (5)

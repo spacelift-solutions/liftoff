@@ -4,7 +4,7 @@ Step 11 of [the migration walkthrough](README.md): close out a batch — push in
 Non-sensitive variables never pass through here: [`generate`](generate.md) emits each one as a `spacelift_environment_variable` in its entity's file, readable in Spacelift rather than write-only, so only what can't be expressed as HCL is left to push.
 
 **Run the pushers before `finalize staged`.**
-`finalize sensitive`, `finalize state`, and `finalize modules` act on **staged units only**, and `finalize staged` is the transition that flips the batch *out of* staged.
+`finalize sensitive`, `finalize state`, and `finalize modules` act on **staged units only**, and `finalize staged` is the transition that flips the batch _out of_ staged.
 Flip first and the pushers find nothing to move — the stacks come up marked migrated holding no secrets and no state.
 So the order is: the pushers ([below](#the-other-finalize-steps)), then `finalize staged` last.
 

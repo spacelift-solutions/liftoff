@@ -2,7 +2,7 @@
 
 [`liftoff publish`](publish.md) is the paved road: it commits the generated module to a **Spacelift-managed repo** and stands up the admin stack for you, over the API, with no external VCS to wire.
 It is **optional**.
-`liftoff` only ever *emits files* — `tofu` is the apply engine either way — so you can keep the module in your own GitHub/GitLab/Bitbucket/etc.
+`liftoff` only ever _emits files_ — `tofu` is the apply engine either way — so you can keep the module in your own GitHub/GitLab/Bitbucket/etc.
 and wire the admin stack yourself.
 This page is that path, end to end.
 
@@ -55,5 +55,5 @@ Its run does a `tofu init` and applies the module, creating every space, context
 Push a change to the module and its next run reconciles Spacelift to match, moves in place.
 
 Everything downstream is **identical to the managed-repo path**.
-The module carries secret *references* and no state, so the stacks stand up from discover's read-only data alone, and the [finalize](finalize.md) steps (`sensitive`/`state`/`modules`) work exactly the same — they resolve entities by name, not by how the repo is hosted.
+The module carries secret _references_ and no state, so the stacks stand up from discover's read-only data alone, and the [finalize](finalize.md) steps (`sensitive`/`state`/`modules`) work exactly the same — they resolve entities by name, not by how the repo is hosted.
 The only difference is who owns the commit and the stack: you do.

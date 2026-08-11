@@ -51,7 +51,7 @@ Next
 ```
 
 **Run the finalize pushers before `finalize staged`, in that order.**
-The pushers (`finalize sensitive`, `finalize state`) act on **staged units only**, and `finalize staged` is the transition that flips the batch *out of* staged (to migrated).
+The pushers (`finalize sensitive`, `finalize state`) act on **staged units only**, and `finalize staged` is the transition that flips the batch _out of_ staged (to migrated).
 Flip first and the pushers find nothing to push — the stacks come up marked migrated but holding no secrets and no state, with no error to tell you.
 So push, then flip: `finalize staged` refuses until every captured secret and state in the batch has been pushed — pushing them is the only way through.
 (`finalize modules` belongs to the same before-`staged` window when you captured module versions — see below.)
@@ -74,7 +74,7 @@ A few things worth knowing:
   Each flip is backed up before it happens, so a crash mid-run is recoverable: `mutate` refuses to start while restore points are pending and points you at [`liftoff restore`](restore.md), which puts the source back exactly as it was.
   Nothing stacks, nothing is left half-flipped.
 - **Run it after the stacks exist.**
-  The generated code carries secret *references* and no state, so the Spacelift stacks stand up from discover's read-only data alone ([publish](publish.md)); `mutate` and the finalize pushers configure them afterward.
+  The generated code carries secret _references_ and no state, so the Spacelift stacks stand up from discover's read-only data alone ([publish](publish.md)); `mutate` and the finalize pushers configure them afterward.
 
 ## Resolving module versions' commit SHAs
 

@@ -83,7 +83,7 @@ Because that unconfirmed run holds the stack, a later `liftoff publish` would qu
 Publish handles the common case itself: when its own newer push supersedes a run still waiting for confirmation, it discards that stale run and tells you which (`Discarded Runs`).
 It won't touch a run that's still working — it stops and says which one to wait for — and it refuses to show you a plan that isn't the one your module would apply, which happens when something else pushed to the repo after you.
 
-The generated code carries secret *references* and no state, so the stacks stand up from discover's read-only data alone.
+The generated code carries secret _references_ and no state, so the stacks stand up from discover's read-only data alone.
 Everything that couldn't travel as code is moved in afterward, in the next steps.
 
 **Prefer your own VCS?**
@@ -93,6 +93,6 @@ and wire the admin stack yourself, see [bring your own git](publish-byo-git.md).
 
 ## What comes next: steps 10 and 11
 
-The applied module creates the *shapes*.
+The applied module creates the _shapes_.
 With the stacks standing, [`liftoff mutate`](mutate.md) (step 10) captures what could not travel as code (secret values and Terraform state), and [`liftoff finalize`](finalize.md) (step 11) pushes it into the live stacks before flipping the batch to migrated.
 Each has its own page with the details and the ordering that finalize enforces.

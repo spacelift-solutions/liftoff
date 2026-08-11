@@ -198,7 +198,7 @@ The output is a **tree of modules — one directory per space**, mirroring your 
 ```
 
 There's no `backend.tf` — state belongs to the Spacelift runner.
-`providers.tf` sits at the root and is inherited by every child module; `versions.tf` repeats in each module because provider *requirements* aren't inherited across a module boundary.
+`providers.tf` sits at the root and is inherited by every child module; `versions.tf` repeats in each module because provider _requirements_ aren't inherited across a module boundary.
 
 Each space is its own module directory.
 Its `space.tf` holds the space resource, parented through a module input rather than a hard-coded reference, so the parent module owns the link:
@@ -356,7 +356,7 @@ resource "spacelift_context_attachment" "org-a-shared_api" {
 
 Sensitive values are never inlined — a sensitive variable or mounted file leaves only a `# sensitive: <name> — set via liftoff finalize sensitive` comment, and the captured value stays in the local store until `liftoff finalize sensitive` pushes it to Spacelift, where it lives write-only.
 
-Everything that *does* render carries `write_only = false`, so it stays readable in Spacelift exactly as it was at the source.
+Everything that _does_ render carries `write_only = false`, so it stays readable in Spacelift exactly as it was at the source.
 That is deliberate rather than decorative: the provider defaults `write_only` to `true`, so a variable that omitted it would arrive marked secret and its value could never be read back — including the plainly non-secret ones.
 The only values that end up write-only are the sensitive ones, which get there through `finalize sensitive`.
 

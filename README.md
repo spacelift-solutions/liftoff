@@ -84,7 +84,7 @@ They are here in short because you are reading this before you have the binary; 
 | [`github.com/spf13/cobra`](https://github.com/spf13/cobra) | Apache-2.0 | CLI command tree. |
 | [`github.com/spf13/pflag`](https://github.com/spf13/pflag) | BSD-3-Clause | POSIX flags (cobra's flag layer). |
 | [`github.com/charmbracelet/lipgloss`](https://github.com/charmbracelet/lipgloss) | MIT | Styled output on an interactive terminal. |
-| [`github.com/charmbracelet/x/ansi`](https://github.com/charmbracelet/x/ansi) | MIT | Stripping terminal colour codes from captured output before encoding. |
+| [`github.com/charmbracelet/x/ansi`](https://github.com/charmbracelet/x/tree/main/ansi) | MIT | Stripping terminal colour codes from captured output before encoding. |
 | [`github.com/muesli/termenv`](https://github.com/muesli/termenv) | MIT | Clickable links to source entities on a terminal that supports them. |
 | [`github.com/toon-format/toon-go`](https://github.com/toon-format/toon-go) | MIT | TOON encoding for piped (agent) output. |
 | [`gopkg.in/yaml.v3`](https://gopkg.in/yaml.v3) | MIT | Config file parsing. |

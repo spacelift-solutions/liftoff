@@ -39,7 +39,7 @@ liftoff batch stage stack:ws-7YopKPAktoDmhFXW
 
 Selectors are `<kind>:<id>` (the `Kind` and `Id` columns from `list`); pass as many as you like, or `--all` for a full lift-and-shift.
 **Staging cascades**: a staged stack pulls in the spaces it sits under and the contexts attached to it, so the batch always renders without dangling.
-The result shows what changed and *why* each dependency came along:
+The result shows what changed and _why_ each dependency came along:
 
 ```text
 Status  staged
@@ -75,11 +75,11 @@ Two spaces changed, the requested one and its parent, and no stacks.
 The stacks in that space are still `unstaged`, and `liftoff batch list` will show them that way.
 To migrate them, name them.
 
-Note that `unstage` is not the mirror image of this: it cascades downward, so unstaging a space *does* take the stacks in it (below).
+Note that `unstage` is not the mirror image of this: it cascades downward, so unstaging a space _does_ take the stacks in it (below).
 
 **Re-staging a migrated unit needs a person's explicit agreement.**
 Staging normally moves an `unstaged` unit into the batch and is ungated.
-But if the cascade would pull back a unit you've already *migrated*, staging drops it out of `migrated` — and the next [`generate`](generate.md) then rewrites its file, losing any hand-edits you made to it.
+But if the cascade would pull back a unit you've already _migrated_, staging drops it out of `migrated` — and the next [`generate`](generate.md) then rewrites its file, losing any hand-edits you made to it.
 So that case refuses first, and the refusal names every migrated unit the cascade touches (not just the one you typed) with why it came along, so what you agree to is the real blast radius.
 A person agrees by re-running with `--restage-migrated`; an agent cannot use the flag, and instead asks the user to run `liftoff approve stage:migrated` in a terminal of their own.
 Staging fresh units is unaffected.

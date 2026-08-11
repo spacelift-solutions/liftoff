@@ -257,7 +257,7 @@ Next
 The prompt names every entity and both values, and the approval is bound to that exact wording, so:
 
 - a second command, with different entities, fields, or values, needs its own approval;
-- re-running the *same* command after it succeeded needs a fresh approval, because an approval is spent when it is used;
+- re-running the _same_ command after it succeeded needs a fresh approval, because an approval is spent when it is used;
 - consent to set a field to one value can never be redeemed for a different one.
 
 Naming several entities in one command is therefore also how you approve a batch of corrections once instead of a dozen times.
@@ -308,7 +308,7 @@ Remediation
   pass a value the field accepts
 ```
 
-What is **not** checked here is whether a free-text value is the *right* one.
+What is **not** checked here is whether a free-text value is the _right_ one.
 `vcs.namespace=theoutdoorprogrammer` is a valid string, and `model set` writes it.
 A namespace's spelling is only wrong relative to what your Spacelift integrations actually serve, and that cross-reference is [`liftoff audit`](audit.md)'s job, which is why `Next` points straight at the rule that makes it:
 

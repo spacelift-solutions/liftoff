@@ -1,7 +1,7 @@
 <!-- comprehension: models -->
 # Choosing a model to drive a migration
 
-*Last reviewed: 2026-08-07. Model quality moves fast — weigh this page's age, and see [the floor](#the-floor-what-a-model-must-be-able-to-do) rather than any single name.*
+_Last reviewed: 2026-08-07. Model quality moves fast — weigh this page's age, and see [the floor](#the-floor-what-a-model-must-be-able-to-do) rather than any single name._
 
 liftoff is agent-first: the recommended way to run a migration is to point an AI at the walkthrough and let it drive.
 That makes the model a real dependency of the tool — the same kind of dependency as OpenTofu or a network path, and the one you choose rather than install.

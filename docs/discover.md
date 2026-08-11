@@ -66,7 +66,7 @@ Two behaviors worth knowing:
   But it still reads the destination first every time, and that is deliberate: the estate is cached in the store, the destination is not, because the destination can change while you work — and either way the read is read-only.
   A re-run's `Spacelift Counts` is a fresh look, not the cached one, so it catches the account moving underneath the migration.
   In practice that matters: `publish` creating the managed repository's VCS integration takes the account's integration count up by one between batches, and a re-discover is what notices, rather than binding the next batch's stacks against a stale inventory.
-  The `liftoff discover --clobber` hint it offers is the start-fresh option, colored as a caution because it throws away the local results *and* your staging.
+  The `liftoff discover --clobber` hint it offers is the start-fresh option, colored as a caution because it throws away the local results _and_ your staging.
   Because clobber discards captured secret values and state — the work an approved, source-mutating [`mutate`](mutate.md) run went and got — it now asks a person to approve it, and the ask counts exactly what will be lost (captured sensitive values, captured state blobs, staged units, migrated units) so you approve a real number, not a warning.
   A workspace with nothing captured or staged still asks, but says the loss is nothing.
   One caveat it names for you: clobber resets the store, not the files you've already generated, so after a migrated batch those files stay on disk describing an estate the re-discover no longer matches — re-generate, or clobber the output too, to keep them in step.

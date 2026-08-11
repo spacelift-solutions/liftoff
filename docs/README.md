@@ -32,7 +32,7 @@ Tell it to run that first.
 ## Driving this as an agent
 
 These pages are your operating manual, not background reading.
-Before anything else, make sure the model driving this is up to it: a migration that only *looks* like it worked is the failure mode that matters, and [Choosing a model](models.md) says what a model has to be capable of and what goes wrong when it isn't.
+Before anything else, make sure the model driving this is up to it: a migration that only _looks_ like it worked is the failure mode that matters, and [Choosing a model](models.md) says what a model has to be capable of and what goes wrong when it isn't.
 Three rules bind every agent-driven migration:
 
 **Follow the walkthrough to the letter.**
