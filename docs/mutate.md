@@ -1,7 +1,7 @@
 <!-- comprehension: mutate -->
 # Mutate
 
-Step 10 of [the migration walkthrough](start.md): run the steps that reach the source for something other than reading its estate.
+Step 10 of [the migration walkthrough](README.md): run the steps that reach the source for something other than reading its estate.
 Each is a **capability the configured source declares**, each is opt-in, and nothing runs unless you name it — so this step runs late, only for the batch you've committed to.
 
 Run `liftoff sources` to see what the configured source offers.
@@ -74,7 +74,7 @@ A few things worth knowing:
   Each flip is backed up before it happens, so a crash mid-run is recoverable: `mutate` refuses to start while restore points are pending and points you at [`liftoff restore`](restore.md), which puts the source back exactly as it was.
   Nothing stacks, nothing is left half-flipped.
 - **Run it after the stacks exist.**
-  The generated code carries secret *references* and no state, so the Spacelift stacks stand up from discover's read-only data alone ([deploy](deploy.md)); `mutate` and the finalize pushers configure them afterward.
+  The generated code carries secret *references* and no state, so the Spacelift stacks stand up from discover's read-only data alone ([publish](publish.md)); `mutate` and the finalize pushers configure them afterward.
 
 ## Resolving module versions' commit SHAs
 
@@ -96,11 +96,10 @@ Module Git Versions
   Resolved  5
 
   Unrecoverable (1)
-    ┌────────────────┬─────────┬───────────────────────────────────────────────┐
-    │ Module         │ Version │ Reason                                        │
-    ├────────────────┼─────────┼───────────────────────────────────────────────┤
-    │ legacy-network │ 0.3.0   │ no tag matching 0.3.0 found in the repository │
-    └────────────────┴─────────┴───────────────────────────────────────────────┘
+      Module   spacelift-stack
+      Version  0.3.0
+      Reason   no tag matching 0.3.0 found in the repository
+      URL      https://app.terraform.io/app/Apollorion/registry/modules/private/Apollorion/spacelift-stack/terraform
 ```
 
 Unlike `secrets`, this **doesn't touch the source** — it reads from the VCS — so it takes no restore point and needs no revert.

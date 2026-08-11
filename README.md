@@ -12,7 +12,7 @@ Point an AI at it and it can drive the whole migration — and every step works 
 A migration is a local project, run where you stand:
 
 ```text
-discover → audit → generate → deploy → finalize
+discover → audit → generate → publish → finalize
 ```
 
 1. **Discover** pulls the source estate into a local SQLite store — the single source of truth.
@@ -20,10 +20,10 @@ discover → audit → generate → deploy → finalize
 2. **Audit** runs rules over the store and tells you what needs attention before anything is created: what each finding means, what `--repair` would write, and what needs a human.
    Repairs touch only the local store.
 3. **Generate** renders the store as a nested, deterministic OpenTofu module tree — a code review of your migration, not a black box.
-4. **Deploy** hands that module to a Spacelift admin stack, which applies it to create everything; **finalize** moves in what can't travel as code — secret values, tfvars, state, module versions.
+4. **Publish** hands that module to a Spacelift admin stack, which applies it to create everything; **finalize** moves in what can't travel as code — secret values, tfvars, state, module versions.
 
 Everything downstream of discover re-runs safely and instantly: re-discover, re-audit, regenerate, diff.
-The full walkthrough — every command, real outputs, and the decisions between them — starts at [docs/start.md](docs/start.md).
+The full walkthrough — every command, real outputs, and the decisions between them — starts at [docs/README.md](docs/README.md).
 
 ## Install
 
@@ -42,18 +42,27 @@ On Windows, download the zip from the [releases page](https://github.com/spaceli
 
 Verify it with `liftoff --version`.
 
-## Ready to use it?
+## Three ways to use it
 
-Working with an AI agent, one instruction is enough:
+All three run the same commands against the same local workspace, so you can move between them mid-migration.
+
+**By hand, in your terminal.** The blessed path: `liftoff --help` to see the surface, then [the walkthrough](docs/README.md) for the migration step by step.
+
+**With an AI agent.** One instruction is enough:
 
 > I want to migrate to Spacelift. They have a migration kit here:
 > <https://github.com/spacelift-solutions/liftoff>
 
 The agent takes it from there: it installs `liftoff`, runs `liftoff skills start`, and follows the embedded walkthrough.
-The `skills` command serves that walkthrough page by page — the same pages under [docs/](docs/start.md) — so the agent learns the pipeline, the decisions, and the guardrails straight from the binary it's driving.
-Flying manual? Start with `liftoff --help` and [docs/start.md](docs/start.md).
+The `skills` command serves that walkthrough page by page (the same pages under [docs/](docs/README.md)), so the agent learns the pipeline, the decisions, and the guardrails straight from the binary it's driving.
 
-**If you are that agent**, three rules bind you before you run anything:
+**In the browser**, with `liftoff ui --beta`.
+The same pipeline as a page: a step rail, a screen per step, and the walkthrough readable beside each one.
+It is in beta, so it asks for the `--beta` flag as consent and the CLI stays the blessed path.
+Details in [docs/ui.md](docs/ui.md).
+
+**If you are that agent**, three rules bind you before you run anything.
+They are here in short because you are reading this before you have the binary; [the walkthrough](docs/README.md) carries them in full, along with the approval and proof-token steps you will meet:
 
 1. **Follow the walkthrough to the letter.** Every numbered step, in order, none skipped — read-only steps included, even when you already know what they would tell you.
    Each step feeds the next (`liftoff sources` is where the config keys come from — not example files, not doc samples, not prior knowledge), and read a stage's page (`liftoff skills <topic>`) before running that stage's commands.
@@ -76,6 +85,7 @@ Flying manual? Start with `liftoff --help` and [docs/start.md](docs/start.md).
 | [`github.com/spf13/pflag`](https://github.com/spf13/pflag) | BSD-3-Clause | POSIX flags (cobra's flag layer). |
 | [`github.com/charmbracelet/lipgloss`](https://github.com/charmbracelet/lipgloss) | MIT | Styled output on an interactive terminal. |
 | [`github.com/charmbracelet/x/ansi`](https://github.com/charmbracelet/x/ansi) | MIT | Stripping terminal colour codes from captured output before encoding. |
+| [`github.com/muesli/termenv`](https://github.com/muesli/termenv) | MIT | Clickable links to source entities on a terminal that supports them. |
 | [`github.com/toon-format/toon-go`](https://github.com/toon-format/toon-go) | MIT | TOON encoding for piped (agent) output. |
 | [`gopkg.in/yaml.v3`](https://gopkg.in/yaml.v3) | MIT | Config file parsing. |
 | [`golang.org/x/sync`](https://pkg.go.dev/golang.org/x/sync) | BSD-3-Clause | Concurrency control while discovering. |

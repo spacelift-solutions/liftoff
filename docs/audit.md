@@ -1,6 +1,6 @@
 # Audit
 
-Step 7 of [the migration walkthrough](start.md): run the rules over the **staged batch**, decide what each finding means, and let `--repair` fix what it can.
+Step 7 of [the migration walkthrough](README.md): run the rules over the **staged batch**, decide what each finding means, and let `--repair` fix what it can.
 
 ## Step 7 — audit the staged set
 
@@ -37,13 +37,15 @@ Findings (6)
     Result       main
 
     Entities (6)
-      ┌────────┬──────────────────────┐
-      │ Kind   │ Id                   │
-      ├────────┼──────────────────────┤
-      │ module │ mod-AJu96tYoVyzKPEjw │
-      │ stack  │ ws-RjHgP1J9E5vrpwSP  │
-      │ …      │ …                    │
-      └────────┴──────────────────────┘
+      mod-AJu96tYoVyzKPEjw
+        Kind  module
+        URL   https://app.terraform.io/app/Apollorion/registry/modules/private/Apollorion/module/mimetype
+
+      ws-RjHgP1J9E5vrpwSP
+        Kind  stack
+        URL   https://app.terraform.io/app/Apollorion/workspaces/terraform-1-8-5-test
+
+      …
 
   module-missing-workflow-tool (error) (1)
     Description  A module needs a workflow tool; the source carries none per module
@@ -53,11 +55,9 @@ Findings (6)
     Result       nothing — `module_workflow_tool` is unset or invalid
 
     Entities (1)
-      ┌────────┬──────────────────────┐
-      │ Kind   │ Id                   │
-      ├────────┼──────────────────────┤
-      │ module │ mod-AJu96tYoVyzKPEjw │
-      └────────┴──────────────────────┘
+      mod-AJu96tYoVyzKPEjw
+        Kind  module
+        URL   https://app.terraform.io/app/Apollorion/registry/modules/private/Apollorion/module/mimetype
 
   stack-missing-vcs-repository (error) (3)
     Description  A stack without a VCS repository cannot be created in Spacelift
@@ -67,13 +67,17 @@ Findings (6)
                  unstage this stack to leave it out of the batch
 
     Entities (3)
-      ┌───────┬─────────────────────┬───────────────────────────────────┐
-      │ Kind  │ Id                  │ Name                              │
-      ├───────┼─────────────────────┼───────────────────────────────────┤
-      │ stack │ ws-axzQMYTKvuxA9VDQ │ this-is-a-test-workspace          │
-      │ stack │ ws-jo93LkzmNb6bK6Ga │ test                              │
-      │ stack │ ws-oxRaEDV2f5uMHy5f │ my-amazing-workspace-local-no-vcs │
-      └───────┴─────────────────────┴───────────────────────────────────┘
+      this-is-a-test-workspace (id: ws-axzQMYTKvuxA9VDQ)
+        Kind  stack
+        URL   https://app.terraform.io/app/Apollorion/workspaces/this-is-a-test-workspace
+
+      test (id: ws-jo93LkzmNb6bK6Ga)
+        Kind  stack
+        URL   https://app.terraform.io/app/Apollorion/workspaces/test
+
+      my-amazing-workspace-local-no-vcs (id: ws-oxRaEDV2f5uMHy5f)
+        Kind  stack
+        URL   https://app.terraform.io/app/Apollorion/workspaces/my-amazing-workspace-local-no-vcs
 
   stack-secret-missing-value (warning) (19)
     Description  A sensitive stack variable with no captured value migrates as an empty secret
@@ -230,12 +234,13 @@ Findings (5)
                  unstage this stack to leave it out of the batch
 
     Entities (2)
-      ┌───────┬─────────────────────┬──────────────────────────┐
-      │ Kind  │ Id                  │ Name                     │
-      ├───────┼─────────────────────┼──────────────────────────┤
-      │ stack │ ws-axzQMYTKvuxA9VDQ │ this-is-a-test-workspace │
-      │ stack │ ws-jo93LkzmNb6bK6Ga │ test                     │
-      └───────┴─────────────────────┴──────────────────────────┘
+      this-is-a-test-workspace (id: ws-axzQMYTKvuxA9VDQ)
+        Kind  stack
+        URL   https://app.terraform.io/app/Apollorion/workspaces/this-is-a-test-workspace
+
+      test (id: ws-jo93LkzmNb6bK6Ga)
+        Kind  stack
+        URL   https://app.terraform.io/app/Apollorion/workspaces/test
 
   … the three warning groups (context and stack secrets, the priority-context
   shadow) print above, unchanged — repair only touches repairable findings.

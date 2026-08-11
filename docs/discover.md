@@ -1,7 +1,7 @@
 <!-- comprehension: discover -->
 # Discover
 
-Step 5 of [the migration walkthrough](start.md): pull the whole estate from the source into the local store — **read-only**.
+Step 5 of [the migration walkthrough](README.md): pull the whole estate from the source into the local store — **read-only**.
 
 ## Step 5 — discover the estate
 
@@ -60,7 +60,7 @@ Two behaviors worth knowing:
 - **Discover reads your Spacelift account first, before it touches the source.**
   It records the VCS integrations and worker pools the account has, so a bad Spacelift key pair fails here rather than after a long walk through the estate, and the stacks it discovers can be bound to the integration that actually serves each repository.
   Where an account has more than one integration a repository could use, discover picks the one connected to the account or project that repository lives under, preferring a working integration over a broken one — so two GitHub Apps on the same host no longer need you to choose between them by hand.
-  This is why the destination credentials are required from this step onward, not only at deploy time.
+  This is why the destination credentials are required from this step onward, not only at publish time.
 - **Running discover again is always safe — and it always re-reads your Spacelift account.**
   When there's nothing new in the source it says so and changes nothing (`note: nothing to discover…`); it never resets the staging choices you've made.
   But it still reads the destination first every time, and that is deliberate: the estate is cached in the store, the destination is not, because the destination can change while you work — and either way the read is read-only.

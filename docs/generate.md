@@ -1,6 +1,6 @@
 # Generate
 
-Step 8 of [the migration walkthrough](start.md): render the audited batch as the OpenTofu module your admin stack applies.
+Step 8 of [the migration walkthrough](README.md): render the audited batch as the OpenTofu module your admin stack applies.
 
 ## Step 8 — generate the module
 
@@ -71,13 +71,17 @@ Ignored (1)
                  unstage this stack to leave it out of the batch
 
     Entities (3)
-      ┌───────┬─────────────────────┬───────────────────────────────────┐
-      │ Kind  │ Id                  │ Name                              │
-      ├───────┼─────────────────────┼───────────────────────────────────┤
-      │ stack │ ws-axzQMYTKvuxA9VDQ │ this-is-a-test-workspace          │
-      │ stack │ ws-jo93LkzmNb6bK6Ga │ test                              │
-      │ stack │ ws-oxRaEDV2f5uMHy5f │ my-amazing-workspace-local-no-vcs │
-      └───────┴─────────────────────┴───────────────────────────────────┘
+      this-is-a-test-workspace (id: ws-axzQMYTKvuxA9VDQ)
+        Kind  stack
+        URL   https://app.terraform.io/app/Apollorion/workspaces/this-is-a-test-workspace
+
+      test (id: ws-jo93LkzmNb6bK6Ga)
+        Kind  stack
+        URL   https://app.terraform.io/app/Apollorion/workspaces/test
+
+      my-amazing-workspace-local-no-vcs (id: ws-oxRaEDV2f5uMHy5f)
+        Kind  stack
+        URL   https://app.terraform.io/app/Apollorion/workspaces/my-amazing-workspace-local-no-vcs
 ```
 
 And in the module, right where the hand-edit belongs:
@@ -361,4 +365,4 @@ Everything you decided upstream is visible in it: the repaired branches read `br
 Read the diff like a PR before applying it.
 
 If anything upstream changes — a re-discover, another repair, a moved stack — regenerate and diff; the store is the source of truth and the module is always just a render of it.
-When the code reads right, move on to [deploy and finalize](deploy.md).
+When the code reads right, move on to [publish and finalize](publish.md).

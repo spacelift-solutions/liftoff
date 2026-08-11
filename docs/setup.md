@@ -1,6 +1,6 @@
 # Set up and configure
 
-Steps 1–4 of [the migration walkthrough](start.md): scaffold the workspace, pick a source, set its credentials, and validate the configuration before anything runs.
+Steps 1–4 of [the migration walkthrough](README.md): scaffold the workspace, pick a source, set its credentials, and validate the configuration before anything runs.
 
 ## Before you start — what you need
 
@@ -263,7 +263,7 @@ Pasting the raw token works too; it just lives in `config.yaml` (and your shell 
 liftoff configure --set source.api_endpoint=https://tfe.example.com --set source.workspace_concurrency=4
 ```
 
-If a required setting is still missing, configure saves your progress and errors with exactly what's left — the specimen in [when something goes wrong](start.md#when-something-goes-wrong) is this very case.
+If a required setting is still missing, configure saves your progress and errors with exactly what's left — the specimen in [when something goes wrong](README.md#when-something-goes-wrong) is this very case.
 With the token set:
 
 ```text

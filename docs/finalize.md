@@ -1,6 +1,7 @@
 # Finalize
 
-Step 11 of [the migration walkthrough](start.md): close out a batch — push in what couldn't travel as code (secrets, state, module versions), then mark the batch migrated so the next batch starts clean.
+Step 11 of [the migration walkthrough](README.md): close out a batch — push in what couldn't travel as code (secrets, state, module versions), then mark the batch migrated so the next batch starts clean.
+Non-sensitive variables never pass through here: [`generate`](generate.md) emits each one as a `spacelift_environment_variable` in its entity's file, readable in Spacelift rather than write-only, so only what can't be expressed as HCL is left to push.
 
 **Run the pushers before `finalize staged`.**
 `finalize sensitive`, `finalize state`, and `finalize modules` act on **staged units only**, and `finalize staged` is the transition that flips the batch *out of* staged.
@@ -23,7 +24,7 @@ It's what lets the pipeline be iterative and additive: once a batch is `migrated
 - the batch drops out of the staged set, so it no longer appears in `batch list` as stageable, and
 - the pushers (`finalize sensitive`, `finalize state`, `finalize modules`) no longer act on it — they touch staged units only.
 
-That last point is why the ordering above is not optional: run every pusher you need **first**, because after `finalize staged` there is no pusher left that will move this batch's secrets, state, or module versions. Re-staging a migrated unit is possible but takes a person's approval and names the full blast radius (see [batch](batch.md)); it is the deliberate exception, not the undo button.
+That last point is why the ordering above is not optional: run every pusher you need **first**, because after `finalize staged` there is no pusher left that will move this batch's secrets, state, or module versions. Re-staging a migrated unit is possible but takes a person's explicit agreement and names the full blast radius (see [batch](batch.md)); it is the deliberate exception, not the undo button.
 
 Because flipping the batch out of staged is what strands unpushed secrets and state, `finalize staged` **refuses** until every captured secret and state in the batch has been pushed.
 There is no override — pushing the data is the only way through, so the batch cannot be marked done while anything is still stranded.
@@ -54,7 +55,7 @@ Repeat until the estate is migrated.
 ## The other finalize steps
 
 `finalize sensitive` pushes the sensitive values `mutate` captured into the live Spacelift stacks and contexts as write-only environment variables and mounted files — the one moment those values leave the local store, and unreadable once set.
-It resolves each target by the Spacelift id derived from its name — the same derivation Spacelift itself performs when the entity is created (lowercased, transliterated to ASCII, spaces and punctuation collapsed to dashes) — so it needs the stacks already standing in Spacelift (the deploy step) and the Spacelift destination credentials in your config:
+It resolves each target by the Spacelift id derived from its name — the same derivation Spacelift itself performs when the entity is created (lowercased, transliterated to ASCII, spaces and punctuation collapsed to dashes) — so it needs the stacks already standing in Spacelift (the publish step) and the Spacelift destination credentials in your config:
 
 ```bash
 liftoff configure \
@@ -81,14 +82,15 @@ liftoff finalize state
 Pushed  4
 
 Skips (2)
-  ┌───────┬─────────────────────┬────────────────┬─────────────────────────────────────────────────────────────────────┐
-  │ Kind  │ Id                  │ Name           │ Reason                                                                │
-  ├───────┼─────────────────────┼────────────────┼─────────────────────────────────────────────────────────────────────┤
-  │ stack │ ws-7YopKPAktoDmhFXW │ legacy-network │ no captured state — never applied at the source, or `liftoff mutate   │
-  │       │                     │                │ --allow-mutation state` has not run                                   │
-  │ stack │ ws-RjHgP1J9E5vrpwSP │ sandbox        │ no captured state — never applied at the source, or `liftoff mutate   │
-  │       │                     │                │ --allow-mutation state` has not run                                   │
-  └───────┴─────────────────────┴────────────────┴─────────────────────────────────────────────────────────────────────┘
+  legacy-network (id: ws-7YopKPAktoDmhFXW)
+    Kind    stack
+    Reason  no captured state — never applied at the source, or `liftoff mutate --allow-mutation state` has not run
+    URL     https://app.terraform.io/app/Apollorion/workspaces/legacy-network
+
+  sandbox (id: ws-RjHgP1J9E5vrpwSP)
+    Kind    stack
+    Reason  no captured state — never applied at the source, or `liftoff mutate --allow-mutation state` has not run
+    URL     https://app.terraform.io/app/Apollorion/workspaces/sandbox
 
 Notes (1)
   - 2 staged stack(s) had no captured state — never applied at the source, or `liftoff mutate --allow-mutation state`
@@ -115,6 +117,14 @@ A version is `Skipped` when its commit SHA was never resolved — either you hav
 The unrecoverable ones are surfaced by [`liftoff audit`](audit.md) as `module-version-unmigratable`; create those in Spacelift by hand, pointing each at its tag's commit.
 
 `finalize staged` above is the lifecycle transition.
+
+## What comes after
+
+After state lands, the migration is complete: Spacelift runs plans against the same state the source last held, and the source can be retired on your schedule.
+Migration is lift-and-shift by design: everything lands where it lived at the source.
+The phase that follows is adoption: organizing spaces around how your teams actually work, tightening policies, and adopting Spacelift-native workflows.
+The `liftoff space` command group (create, move, reshape; a move relocates a stack's file into the target space's directory and emits a `moved` block, so the admin stack re-parents it in place) is the tooling for that phase, and its shape is still being worked out with early users.
+Expect this page to grow.
 
 ## Dispose of the workspace when you're done
 

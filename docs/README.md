@@ -1,7 +1,16 @@
 # Migrating with liftoff
 
-This is the walkthrough `liftoff --help` points at.
-It goes through a migration step by step: the command to run, what the output looks like, and what to decide before moving on.
+`liftoff` moves an infrastructure-as-code estate onto Spacelift: Terraform Cloud and Enterprise today, more sources to come.
+It pulls everything the source knows into a local store on your own machine, audits what it found, renders the whole estate as OpenTofu you can read before anything is created, and hands that to a Spacelift admin stack to apply.
+One static binary, no Docker, and every step re-runs safely.
+
+There are three ways to drive it, and they all run the same commands against the same local workspace, so you can move between them mid-migration:
+
+- **The CLI, by hand.** Type the commands yourself and read what each one reports. This is the blessed path, and it is what these pages document.
+- **The CLI, driven by an AI agent.** Point an agent at these pages and it runs the same commands, stopping at every decision that is yours. Start at [Choosing a model](models.md), then read [Driving this as an agent](#driving-this-as-an-agent) below.
+- **The browser UI**, `liftoff ui --beta`. The same pipeline as a page, with the step rail and these guides beside each screen. It is in beta and needs the `--beta` flag; see [the browser UI](ui.md).
+
+This is its walkthrough, and the page `liftoff --help` points at: a migration step by step, with the command to run, what the output looks like, and what to decide before moving on.
 Each stage has its own page:
 
 1. **[Set up and configure](setup.md)** — what you need before you start, then install `liftoff`, init the workspace, pick a source, set credentials, and validate before running anything (steps 1–4).
@@ -10,7 +19,7 @@ Each stage has its own page:
 4. **[Audit](audit.md)** — findings over the staged set, repair keys, `--repair` (step 7).
    **[Model](model.md)** — read the local store, and correct a value `--repair` cannot (any time).
 5. **[Generate](generate.md)** — render the OpenTofu module for the batch (step 8).
-6. **[Deploy](deploy.md)** — hand the module to Spacelift and apply it (step 9).
+6. **[Publish](publish.md)** — hand the module to Spacelift and apply it (step 9).
 7. **[Mutate](mutate.md)** — capture the staged workspaces' secret values, the one step that touches the source again (step 10).
 8. **[Finalize](finalize.md)** — mark the batch migrated, then loop back to discover for the next batch (step 11).
 
@@ -76,6 +85,8 @@ When output is piped (a script, CI, an agent), the full detail comes out as [TOO
 The samples in these pages show the terminal view.
 The one exception is `liftoff skills`: a page is markdown, so it prints verbatim whether piped or not — only `--output json` wraps it in the envelope.
 
+Wherever a result names an entity — a skip report, an audit finding, an inventory — the piped output carries a `url` field linking to that entity at the source, so "let me look at that thing" is one click, not a hunt. A source with no web address for a kind simply omits it. The styled terminal view shows the link at the decision points where it earns its place (skips, findings, `model get`) — clickable, if your terminal supports it — but leaves it out of the wide `batch list` / `model list` tables, where it's a column away in the piped output; pass `--no-urls` to drop links from the piped output too, for a token-lean run over a large estate.
+
 Commands never prompt.
 When something is missing you get a structured error with a code and a remediation that says what to provide, and the command exits non-zero.
 Most results end with a `Next` section listing the follow-up command, so you rarely need to remember what comes after what.
@@ -116,7 +127,11 @@ When in doubt, run the command again.
 - **`liftoff restore`** — put the source back if a `mutate` run was interrupted before it finished reverting.
   Almost never needed; when it is, `mutate` refuses to run and points you here.
   Details in [restore.md](restore.md).
-- **`liftoff skills [topic]`** — print the guidance page for a topic (`start`, `models`, `setup`, `discover`, `batch`, `audit`, `model`, `generate`, `deploy`, `publish-byo-git`, `mutate`, `finalize`, `restore`), plus anything source-specific.
+- **`liftoff ui --beta`** — serve a browser UI over this same workspace and open it: the step rail, each step's screen, and these pages readable beside them.
+  In beta, so it needs the `--beta` consent flag; the CLI stays the blessed path.
+  For people only: agents are refused, and the URL it prints is a session credential.
+  Details in [ui.md](ui.md).
+- **`liftoff skills [topic]`** — print the guidance page for a topic (`start`, `models`, `setup`, `discover`, `batch`, `audit`, `model`, `generate`, `publish`, `publish-byo-git`, `mutate`, `finalize`, `restore`, `ui`), plus anything source-specific.
   Built for agents; the content is these pages, starting with this one.
 
 ## When something goes wrong

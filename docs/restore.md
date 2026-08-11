@@ -1,6 +1,6 @@
 # Restore
 
-The contingency command of [the migration walkthrough](start.md): put the source back if a [`mutate`](mutate.md) run was interrupted before it finished reverting.
+The contingency command of [the migration walkthrough](README.md): put the source back if a [`mutate`](mutate.md) run was interrupted before it finished reverting.
 On a clean run every mutation reverts inline, so most migrations never run this.
 
 ## When it matters

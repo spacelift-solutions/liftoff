@@ -1,6 +1,6 @@
 # Batch
 
-Step 6 of [the migration walkthrough](start.md): choose which units migrate in this batch.
+Step 6 of [the migration walkthrough](README.md): choose which units migrate in this batch.
 Migrations are iterative — you don't move the whole estate at once, you stage a batch, migrate it, then come back for the next.
 
 ## `liftoff batch list` — see what's there
@@ -77,10 +77,11 @@ To migrate them, name them.
 
 Note that `unstage` is not the mirror image of this: it cascades downward, so unstaging a space *does* take the stacks in it (below).
 
-**Re-staging a migrated unit needs a person's approval.**
+**Re-staging a migrated unit needs a person's explicit agreement.**
 Staging normally moves an `unstaged` unit into the batch and is ungated.
 But if the cascade would pull back a unit you've already *migrated*, staging drops it out of `migrated` — and the next [`generate`](generate.md) then rewrites its file, losing any hand-edits you made to it.
-So that case asks a person to approve first, and the ask names every migrated unit the cascade touches (not just the one you typed) with why it came along, so you're approving the real blast radius.
+So that case refuses first, and the refusal names every migrated unit the cascade touches (not just the one you typed) with why it came along, so what you agree to is the real blast radius.
+A person agrees by re-running with `--restage-migrated`; an agent cannot use the flag, and instead asks the user to run `liftoff approve stage:migrated` in a terminal of their own.
 Staging fresh units is unaffected.
 
 ## `liftoff batch unstage` — change your mind

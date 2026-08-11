@@ -1,6 +1,7 @@
-# Deploy and finalize
+# Publish
 
-Step 9 of [the migration walkthrough](start.md) and the steps that close out a batch: hand the generated module to Spacelift, let the admin stack create everything, then — once the stacks exist — capture secrets ([mutate](mutate.md), step 10), then [finalize](finalize.md) the batch (step 11): move the last pieces that couldn't travel as code (secret values, state, module versions) into the live stacks, and only then mark the batch migrated.
+Step 9 of [the migration walkthrough](README.md): hand the generated module to Spacelift and let the admin stack create everything.
+Once the stacks stand, [mutate](mutate.md) (step 10) and [finalize](finalize.md) (step 11) close out the batch.
 
 ## Step 9 — publish the module and create the admin stack
 
@@ -59,7 +60,7 @@ Which means publish's output is the thing you are proving you read: filtering it
 
 Reading the plan is only half of it.
 Applying also needs a person to approve it, and that approval is not something an assistant can supply — the refusal names the command to run.
-See [the agent rules](start.md#driving-this-as-an-agent) for how that exchange goes.
+See [the agent rules](README.md#driving-this-as-an-agent) for how that exchange goes.
 
 Applying pushes nothing (a new commit would replan and retire the token).
 It confirms the run and streams the apply the way the plan streamed, ending when the run reaches a terminal state; a run that fails comes back as an error with its log.
@@ -90,41 +91,8 @@ The managed repo is the paved road, not a requirement — `liftoff` only emits f
 To commit the module to your own GitHub/GitLab/etc.
 and wire the admin stack yourself, see [bring your own git](publish-byo-git.md).
 
-## Steps 10–11 — capture, move in what couldn't travel as code, then finalize
-
-With the stacks live, [`liftoff mutate`](mutate.md) (step 10) is the one step that reaches the source again, and only for the capabilities you name: with `--allow-mutation state` it captures each staged stack's current Terraform **state**, with `--allow-mutation secrets` their masked secret **values**, and with `--allow-mutation context-secrets` the masked values held by shared variable sets — all into the local store at cutover.
+## What comes next: steps 10 and 11
 
 The applied module creates the *shapes*.
-Non-sensitive variables already travel as code — `generate` emits each one as a `spacelift_environment_variable` in its stack's file, readable in Spacelift rather than write-only — so only the pieces that can't be expressed as HCL are left for `finalize` (step 11).
-Its **pushers** move what `mutate` captured into the live stacks:
-
-```bash
-liftoff finalize sensitive
-liftoff finalize state
-liftoff finalize modules
-```
-
-- **`finalize sensitive`** pushes the secret values `mutate` captured into Spacelift as write-only environment variables and mounted files — for stacks and contexts alike, the only moment they leave the local store, and unreadable once set.
-- **`finalize state`** migrates each staged stack's state into Spacelift.
-  The state is captured locally in `mutate` at cutover, then pushed over the API — uploaded to storage and imported onto the (briefly locked) stack, with nothing temporary created in your account.
-  Stacks never applied at the source have no state and are skipped — each named in the report, with why.
-- **`finalize modules`** recreates each private module's published versions in Spacelift, pushing the commit SHAs that [`mutate --allow-mutation module-git-versions`](mutate.md) resolved from the module's VCS (the source never exposes them).
-  Versions with no VCS connection or no matching tag can't be recreated and are surfaced by [`liftoff audit`](audit.md).
-  See [finalize](finalize.md) for the details.
-
-Only then does [`liftoff finalize staged`](finalize.md) flip the batch `staged → migrated`, closing the loop so the next `discover` preserves it and `generate` keeps its files.
-
-**Order matters, and it's enforced.**
-The pushers act on **staged units only**, and `finalize staged` is the transition that flips the batch *out of* staged.
-Run `finalize staged` before the pushers and they find nothing to move — the stacks come up marked migrated but holding no secrets and no state, silently under-migrated with no error to catch it.
-So the pushers run first and `finalize staged` last: it **refuses** to flip until every captured secret and state in the batch has been pushed.
-There is no override — pushing the data is the only way through.
-
-After state lands, the migration is complete: Spacelift runs plans against the same state the source last held, and the source can be retired on your schedule.
-
-## What comes after
-
-Migration is lift-and-shift by design — everything lands where it lived at the source.
-The phase that follows is adoption: organizing spaces around how your teams actually work, tightening policies, and adopting Spacelift-native workflows.
-The `liftoff space` command group (create, move, reshape — a move relocates a stack's file into the target space's directory and emits a `moved` block, so the admin stack re-parents it in place) is the tooling for that phase, and its shape is still being worked out with early users.
-Expect this page to grow.
+With the stacks standing, [`liftoff mutate`](mutate.md) (step 10) captures what could not travel as code (secret values and Terraform state), and [`liftoff finalize`](finalize.md) (step 11) pushes it into the live stacks before flipping the batch to migrated.
+Each has its own page with the details and the ordering that finalize enforces.

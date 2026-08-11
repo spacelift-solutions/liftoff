@@ -2,7 +2,7 @@
 
 Read and write the local model — the normalized store every other command works from.
 
-`liftoff model` is not a numbered step in [the migration walkthrough](start.md).
+`liftoff model` is not a numbered step in [the migration walkthrough](README.md).
 It is the surface you reach for when you need to see exactly what was captured, or correct something the source reported wrongly.
 Everything it touches is local: nothing here calls the source or Spacelift.
 

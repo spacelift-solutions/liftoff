@@ -1,6 +1,6 @@
 # Publish with your own git
 
-[`liftoff publish`](deploy.md) is the paved road: it commits the generated module to a **Spacelift-managed repo** and stands up the admin stack for you, over the API, with no external VCS to wire.
+[`liftoff publish`](publish.md) is the paved road: it commits the generated module to a **Spacelift-managed repo** and stands up the admin stack for you, over the API, with no external VCS to wire.
 It is **optional**.
 `liftoff` only ever *emits files* — `tofu` is the apply engine either way — so you can keep the module in your own GitHub/GitLab/Bitbucket/etc.
 and wire the admin stack yourself.
