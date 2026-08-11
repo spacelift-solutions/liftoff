@@ -120,7 +120,8 @@ When in doubt, run the command again.
 
 ## Commands that work at any point
 
-- **`liftoff status`** — inspect the store, read-only: entity counts, where the database lives, and capture progress as `captured/total` (plus `pushed/captured` once finalize has written values live).
+- **`liftoff status`** — inspect the store, read-only: entity counts, where the database lives, and capture progress as `captured/capturable` (plus `pushed/captured` once finalize has written values live).
+  An entity nothing can ever be captured for — a stack the source holds no state for, a module version whose tag no longer resolves — is recorded **unresolvable** with the reason why: it leaves the denominator and is counted beside it (`2 unresolvable`), so a complete capture reads complete instead of manufacturing a shortfall.
   Progress is reported twice: against the **batch** you have staged, which is what `mutate` and `finalize` act on, and against the whole **estate**.
   The batch is the one that tells you whether you can finalize now; the estate is how much migration is left.
   The quick "what do I have so far" check between steps — especially between `mutate` and `finalize`.

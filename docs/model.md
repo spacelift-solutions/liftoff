@@ -66,19 +66,23 @@ liftoff model list --kind stack
 Kind  stack
 
 Entities (3)
-  ┌─────────────────────┬───────────────┬────────────────────┬────────┬────────────────┐
-  │ ID                  │ Name          │ Owner              │ Status │ State Captured │
-  ├─────────────────────┼───────────────┼────────────────────┼────────┼────────────────┤
-  │ ws-a4R2onDC3LMJ1oWu │ billing-api   │ space:prj-platform │ staged │ ✓              │
-  │ ws-jo93LkzmNb6bK6Ga │ edge-proxy    │ space:prj-platform │ staged │ –              │
-  │ ws-oxRaEDV2f5uMHy5f │ sandbox-local │ space:org-acme     │ staged │ –              │
-  └─────────────────────┴───────────────┴────────────────────┴────────┴────────────────┘
+  ┌───────────┬─────────────┬───────────────────┬────────┬────────────────┬────────────────────────────────────────────┐
+  │ ID        │ Name        │ Owner             │ Status │ State Captured │ Unresolvable                               │
+  ├───────────┼─────────────┼───────────────────┼────────┼────────────────┼────────────────────────────────────────────┤
+  │ ws-api    │ api-service │ space:prj-alpha   │ staged │ –              │ the workspace has never been applied, so   │
+  │           │             │                   │        │                │ the source holds no state to capture       │
+  │ ws-legacy │ legacy      │ space:prj-beta    │ staged │ –              │ the workspace has never been applied, so   │
+  │           │             │                   │        │                │ the source holds no state to capture       │
+  │ ws-web    │ web         │ space:liftoff-e2e │ staged │ ✓              │                                            │
+  └───────────┴─────────────┴───────────────────┴────────┴────────────────┴────────────────────────────────────────────┘
 ```
 
 `--status` narrows to `unstaged`, `staged`, `skipped`, or `migrated`.
 A leaf's status comes from its owner, so `--kind variable --status staged` lists the variables of staged stacks and contexts.
 
 `State Captured` answers a question that otherwise only surfaces at [`finalize state`](finalize.md), by which point it is too late to act on: which staged stacks actually have a Terraform state captured.
+`Unresolvable` carries the recorded reason a missing capture is not a gap — here, that the source holds no state for the stack — and stays empty for one whose capture is simply outstanding.
+Every entity kind carries the same column with the same meaning; the module version listing uses it for the recorded reason a version's commit SHA can never be recovered.
 
 One entity in full:
 

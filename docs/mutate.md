@@ -70,6 +70,7 @@ A few things worth knowing:
 - **`state` is opt-in too, though it changes nothing at the source.**
   It reaches the source and pulls each staged stack's whole state blob — your infrastructure data — so it asks first.
   `liftoff finalize state` has nothing to push without it.
+  Each staged stack is re-checked at the source as it is captured, not trusted from `discover`'s snapshot: a stack applied after `discover` is captured all the same, and one with no state at the source is recorded as such — so run it at cutover and the store reflects the source as it is, not as it was.
 - **Every mutation is reverted, and reconcilable.**
   Each flip is backed up before it happens, so a crash mid-run is recoverable: `mutate` refuses to start while restore points are pending and points you at [`liftoff restore`](restore.md), which puts the source back exactly as it was.
   Nothing stacks, nothing is left half-flipped.
@@ -106,5 +107,6 @@ Unlike `secrets`, this **doesn't touch the source** — it reads from the VCS �
 It's additive: the rest of `mutate` runs as it always does, so the run also reports whatever it captured for the staged batch.
 It needs a `vcs.token` (a PAT with read access to the module repositories); `liftoff` picks the right git username per provider, and `vcs.host` covers self-hosted providers (GitHub Enterprise, a self-managed GitLab, Bitbucket Data Center).
 Versions whose module has no VCS connection, or whose tag no longer resolves, are reported here and surfaced by [`liftoff audit`](audit.md) — never silently dropped.
+Each dead end is also **recorded on the version itself**, so [`liftoff status`](README.md#commands-that-work-at-any-point) counts it apart from a version not yet resolved and `liftoff model list --kind module_version` shows the reason; a later run that does resolve the tag clears the record.
 
 Pushing the captured values into the live Spacelift stacks is a separate finalize step (see [finalize](finalize.md)).

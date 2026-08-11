@@ -71,7 +71,7 @@ Every skip is **named**: the report lists each skipped value (kind, id, name) an
 When captured state is still unpushed, `Next` names `liftoff finalize state` — not `finalize staged` — so the ordering the page warns about is also what the hint says.
 
 `finalize state` pushes each staged stack's Terraform state — captured locally by `mutate --allow-mutation state` at cutover — into its live Spacelift stack: the raw state is uploaded to Spacelift storage, then imported onto the stack (briefly locked for the import, as Spacelift requires), addressed by the same name-derived id.
-Stacks never applied at the source have no state and are skipped — each named in the report, with why.
+A skipped stack is named with why, and the two reasons are kept apart: a stack **recorded unresolvable** (say, one the source holds no state for) is nothing to push — its skip carries the recorded reason, not a gap, and [`liftoff status`](README.md#commands-that-work-at-any-point) doesn't count it as one — while a stack whose state is simply **not captured yet** names the `mutate` run that fixes it.
 It needs the same Spacelift credentials as above:
 
 ```bash
@@ -79,22 +79,43 @@ liftoff finalize state
 ```
 
 ```text
-Pushed  4
+Pushed  1
 
 Skips (2)
-  legacy-network (id: ws-7YopKPAktoDmhFXW)
-    Kind    stack
-    Reason  no captured state — never applied at the source, or `liftoff mutate --allow-mutation state` has not run
-    URL     https://app.terraform.io/app/Apollorion/workspaces/legacy-network
-
-  sandbox (id: ws-RjHgP1J9E5vrpwSP)
-    Kind    stack
-    Reason  no captured state — never applied at the source, or `liftoff mutate --allow-mutation state` has not run
-    URL     https://app.terraform.io/app/Apollorion/workspaces/sandbox
+  ┌───────┬───────────┬─────────────┬──────────────┬───────────────────────────────────────────────────────────────────┐
+  │ Kind  │ ID        │ Name        │ Reason       │ URL                                                               │
+  ├───────┼───────────┼─────────────┼──────────────┼───────────────────────────────────────────────────────────────────┤
+  │ stack │ ws-api    │ api-service │ the          │ http://tfe.localhost:18091/app/liftoff-e2e/workspaces/api-service │
+  │       │           │             │ workspace    │                                                                   │
+  │       │           │             │ has never    │                                                                   │
+  │       │           │             │ been         │                                                                   │
+  │       │           │             │ applied, so  │                                                                   │
+  │       │           │             │ the source   │                                                                   │
+  │       │           │             │ holds no     │                                                                   │
+  │       │           │             │ state to     │                                                                   │
+  │       │           │             │ capture —    │                                                                   │
+  │       │           │             │ nothing to   │                                                                   │
+  │       │           │             │ push, not a  │                                                                   │
+  │       │           │             │ gap          │                                                                   │
+  │ stack │ ws-legacy │ legacy      │ the          │ http://tfe.localhost:18091/app/liftoff-e2e/workspaces/legacy      │
+  │       │           │             │ workspace    │                                                                   │
+  │       │           │             │ has never    │                                                                   │
+  │       │           │             │ been         │                                                                   │
+  │       │           │             │ applied, so  │                                                                   │
+  │       │           │             │ the source   │                                                                   │
+  │       │           │             │ holds no     │                                                                   │
+  │       │           │             │ state to     │                                                                   │
+  │       │           │             │ capture —    │                                                                   │
+  │       │           │             │ nothing to   │                                                                   │
+  │       │           │             │ push, not a  │                                                                   │
+  │       │           │             │ gap          │                                                                   │
+  └───────┴───────────┴─────────────┴──────────────┴───────────────────────────────────────────────────────────────────┘
 
 Notes (1)
-  - 2 staged stack(s) had no captured state — never applied at the source, or `liftoff mutate --allow-mutation state`
-    has not run (a source that captures no state never will)
+  - 2 staged stack(s) are recorded unresolvable — nothing to push for them, not a gap; each skip above names why
+
+Next
+  $ liftoff finalize staged
 ```
 
 `finalize modules` backfills each staged module's **published versions** into Spacelift — Spacelift won't recreate a module's version history on its own.
@@ -113,8 +134,9 @@ Next
   $ liftoff finalize staged
 ```
 
-A version is `Skipped` when its commit SHA was never resolved — either you haven't run the `module-git-versions` mutation yet, or the SHA couldn't be recovered (the module has no VCS connection, or its tag no longer resolves).
-The unrecoverable ones are surfaced by [`liftoff audit`](audit.md) as `module-version-unmigratable`; create those in Spacelift by hand, pointing each at its tag's commit.
+A version is `Skipped` when its commit SHA was never resolved, and the report keeps the two cases apart: a version the mutation **recorded as unresolvable** (the module has no VCS connection, or its tag no longer resolves) is counted under `Unresolvable` — an explained dead end, not work outstanding — while the rest simply haven't been resolved yet, and the note names the `module-git-versions` run that fixes them.
+`liftoff model list --kind module_version` shows each recorded reason, and [`liftoff status`](README.md#commands-that-work-at-any-point) counts the unresolvable ones apart from a real shortfall.
+The unrecoverable ones are also surfaced by [`liftoff audit`](audit.md) as `module-version-unmigratable`; create those in Spacelift by hand, pointing each at its tag's commit.
 
 `finalize staged` above is the lifecycle transition.
 
