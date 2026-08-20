@@ -77,6 +77,18 @@ When captured state is still unpushed, `Next` names `liftoff finalize state` —
 `finalize state` pushes each staged stack's Terraform state — captured locally by `mutate --allow-mutation state` at cutover — into its live Spacelift stack: the raw state is uploaded to Spacelift storage, then imported onto the stack (briefly locked for the import, as Spacelift requires), addressed by the same name-derived id.
 A skipped stack is named with why, and the two reasons are kept apart: a stack **recorded unresolvable** (say, one the source holds no state for) is nothing to push — its skip carries the recorded reason, not a gap, and [`liftoff status`](README.md#commands-that-work-at-any-point) doesn't count it as one — while a stack whose state is simply **not captured yet** names the `mutate` run that fixes it.
 The notes repeat each skipped stack with its source URL, so you can open the ones missing state without reading the skip table.
+
+A stack whose push **fails** — Spacelift refuses it, or the connection drops mid-import — costs only itself.
+It is recorded under `failures` with the reason, what to do about it, and its source URL, and the run carries on to the next stack, so one bad moment on a big batch does not strand every stack behind it.
+The notes repeat each failure the same way they repeat each skip.
+Deal with what they name and run `liftoff finalize state` again: it retries the failures, and re-importing a state that already landed is harmless.
+Only a failure that would hit every remaining stack the same way — credentials refused, a broken workspace — stops the run early, and the notes then say how many stacks were never attempted.
+
+The import briefly locks the stack, and both the lock and the unlock are retried when the connection drops, because a stack left locked is one nobody can run.
+If the retries are exhausted the failure says so — unlock that stack in Spacelift before its first run.
+A lock Spacelift _refuses_ is not retried: something is already holding it, and that needs a person.
+Progress goes to stderr — add `-v` to watch each stack go by, and `-vv` for each upload and import.
+
 It needs the same Spacelift credentials as above:
 
 ```bash
