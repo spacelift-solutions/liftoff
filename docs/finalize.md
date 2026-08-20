@@ -76,6 +76,7 @@ When captured state is still unpushed, `Next` names `liftoff finalize state` —
 
 `finalize state` pushes each staged stack's Terraform state — captured locally by `mutate --allow-mutation state` at cutover — into its live Spacelift stack: the raw state is uploaded to Spacelift storage, then imported onto the stack (briefly locked for the import, as Spacelift requires), addressed by the same name-derived id.
 A skipped stack is named with why, and the two reasons are kept apart: a stack **recorded unresolvable** (say, one the source holds no state for) is nothing to push — its skip carries the recorded reason, not a gap, and [`liftoff status`](README.md#commands-that-work-at-any-point) doesn't count it as one — while a stack whose state is simply **not captured yet** names the `mutate` run that fixes it.
+The notes repeat each skipped stack with its source URL, so you can open the ones missing state without reading the skip table.
 It needs the same Spacelift credentials as above:
 
 ```bash
@@ -115,8 +116,10 @@ Skips (2)
   │       │           │             │ gap          │                                                                   │
   └───────┴───────────┴─────────────┴──────────────┴───────────────────────────────────────────────────────────────────┘
 
-Notes (1)
-  - 2 staged stack(s) are recorded unresolvable — nothing to push for them, not a gap; each skip above names why
+Notes (3)
+  - 2 staged stack(s) are recorded unresolvable — nothing to push for them, not a gap
+  - api-service (ws-api) — http://tfe.localhost:18091/app/liftoff-e2e/workspaces/api-service
+  - legacy (ws-legacy) — http://tfe.localhost:18091/app/liftoff-e2e/workspaces/legacy
 
 Next
   $ liftoff finalize staged

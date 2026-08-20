@@ -106,6 +106,20 @@ A few things worth knowing:
   It reaches the source and pulls each staged stack's whole state blob — your infrastructure data — so it asks first.
   `liftoff finalize state` has nothing to push without it.
   Each staged stack is re-checked at the source as it is captured, not trusted from `discover`'s snapshot: a stack applied after `discover` is captured all the same, and one with no state at the source is recorded as such — so run it at cutover and the store reflects the source as it is, not as it was.
+  A workspace the source holds no state for is **named in the notes**, with its source URL: the report lists each one so you can open it, and you do not have to rerun the capture to find out which.
+
+```text
+Capabilities
+  State
+    Captured  10
+    Skipped   2
+
+    Notes (3)
+      - 2 staged workspace(s) have never been applied, so the source holds no state to capture
+      - never-applied (ws-legacy) — https://app.terraform.io/app/acme/workspaces/never-applied
+      - sandbox (ws-sandbox) — https://app.terraform.io/app/acme/workspaces/sandbox
+```
+
 - **Every mutation is reverted, and reconcilable.**
   Each flip is backed up before it happens, so a crash mid-run is recoverable: `mutate` refuses to start while restore points are pending and points you at [`liftoff restore`](restore.md), which puts the source back exactly as it was.
   Nothing stacks, nothing is left half-flipped.
