@@ -62,6 +62,41 @@ A value can also stay empty when it cannot be attributed to one owner.
 If an organization-wide variable set and a staged one both define the same name, only one value reaches the run, so the kit reports the collision and leaves that variable empty rather than risk storing the wrong secret.
 Set those in Spacelift directly.
 
+## When some units can't be captured
+
+`mutate` captures everything it can and reports the rest.
+One entity the source refuses does not end the run: the units after it are still captured, and each failure comes back naming what it was and why.
+
+```text
+Source  terraform
+
+Capabilities
+  Context-secrets
+    Captured  41
+    Skipped   2
+
+Failures (2)
+  ┌─────────────────┬─────────────────────────┬────────────────────┬───────────────────────────────────────────────────┐
+  │ Capability      │ Entity                  │ Code               │ Reason                                            │
+  ├─────────────────┼─────────────────────────┼────────────────────┼───────────────────────────────────────────────────┤
+  │ context-secrets │ varset-2MRjRdWjyy6b6Y3p │ source_rejected    │ Terraform API returned HTTP 422: invalid          │
+  │                 │                         │                    │ attribute: Workspace(s) [ws-KgRB9nEvqiUxY8RZ] not │
+  │                 │                         │                    │ found                                             │
+  │ secrets         │ ws-7QpLm4XbHt2c9Y1a     │ extraction_timeout │ no agent job arrived for workspace ws-            │
+  │                 │                         │                    │ 7QpLm4XbHt2c9Y1a                                  │
+  └─────────────────┴─────────────────────────┴────────────────────┴───────────────────────────────────────────────────┘
+```
+
+`Captured` plus `Skipped` always accounts for everything the staged batch put in scope, and `Failures` names the units that need another go.
+Re-run the same `mutate` command to retry just those; what was already captured is not captured twice.
+A retry needs a fresh approval, because an approval is spent by the run it was given to.
+
+The run stops early only when a failure would hit every remaining unit anyway: a rejected credential, a source that cannot be reached, a cancelled run, or a backup that could not be written.
+The last of those is deliberate: nothing is changed at the source without a recorded way back.
+
+Because a partial run is still a run that did work, `mutate` reports it as a result rather than an error.
+Read `failures` to decide what is left, not the exit code.
+
 A few things worth knowing:
 
 - **The opt-in is per run.**
@@ -76,6 +111,24 @@ A few things worth knowing:
   Nothing stacks, nothing is left half-flipped.
 - **Run it after the stacks exist.**
   The generated code carries secret _references_ and no state, so the Spacelift stacks stand up from discover's read-only data alone ([publish](publish.md)); `mutate` and the finalize pushers configure them afterward.
+
+## When a captured value turns out to be multi-line
+
+A Spacelift variable value is single-line, so no value carrying a newline is ever stored as a variable.
+The kit translates it instead: the value becomes a **mounted file** at `liftoff/<owner-id>/<NAME>` under `/mnt/workspace/` on its owning stack or context, and that owner gets `export <NAME>="$(cat /mnt/workspace/liftoff/<owner-id>/<NAME>)"` in **both** its `before_init` and `before_apply` hooks (both, because the phases up to apply share init's container while apply may get a fresh one).
+Inside the run it is an ordinary environment variable of the same name — it just isn't a Spacelift variable, and it is never also created as one. It is one or the other.
+
+[`discover`](discover.md) already does this for values the source hands over in the clear.
+`mutate` does it for the **sensitive** ones: the source masks those, so their newlines only surface when the plaintext is captured here.
+A captured multi-line value becomes a **sensitive** mounted file — the content stays in the local store, never written into generated code, and [`liftoff finalize sensitive`](finalize.md) is what pushes it.
+
+**A mounted capture costs one extra lap through generate and publish.**
+Hooks are stack and context arguments, so they live in the generated OpenTofu — but `mutate` is step 10, after [`generate`](generate.md) (step 8) and [`publish`](publish.md) (step 9).
+The moment `mutate` mounts a captured value, the module the admin stack already applied is stale: it carries no export hooks for that file.
+So re-run `liftoff generate` and `liftoff publish` to get the hooks into Spacelift, then `liftoff finalize sensitive` to push the file contents.
+`mutate` says so in its report notes whenever it happens, and counts the values it mounted.
+
+Skip that lap and the failure is a quiet one: the file lands in Spacelift, nothing exports it, and the run sees no such variable.
 
 ## Resolving module versions' commit SHAs
 

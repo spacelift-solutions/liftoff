@@ -1,7 +1,7 @@
 # Restore
 
 The contingency command of [the migration walkthrough](README.md): put the source back if a [`mutate`](mutate.md) run was interrupted before it finished reverting.
-On a clean run every mutation reverts inline, so most migrations never run this.
+Every mutation reverts inline, including the ones belonging to a unit that failed, so most migrations never run this.
 
 ## When it matters
 
@@ -33,6 +33,7 @@ liftoff restore --confirm
 
 This is source-mutating — it dispatches each pending restore point back to its capability's revert, most recent first, and clears the point once the source confirms.
 A revert that fails is reported and kept for a retry; the rest still proceed.
+When some fail, `restore` names every point it reverted and every one still pending, with the reason each failed, and exits non-zero: the source is not back to its original state until nothing is pending.
 
 For the Terraform source's `secrets` capability, a revert puts each touched workspace back to its original execution mode and agent pool, and deletes the temporary agent pool the extraction created.
 

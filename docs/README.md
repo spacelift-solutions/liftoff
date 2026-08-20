@@ -23,6 +23,8 @@ Each stage has its own page:
 7. **[Mutate](mutate.md)** — capture the staged workspaces' secret values, the one step that touches the source again (step 10).
 8. **[Finalize](finalize.md)** — mark the batch migrated, then loop back to discover for the next batch (step 11).
 
+One page is not a step, and is worth knowing where to find before you need it: **[Error codes](errors.md)** — what the `code` on any error means, and what to do about it.
+
 Migrations are **iterative**: discover once, then stage → audit → generate → apply → mutate → finalize a batch at a time, coming back for the next.
 
 The same pages back `liftoff skills <topic>` — an agent asking for `discover` gets [discover.md](discover.md) verbatim, and `liftoff skills start` serves this page.

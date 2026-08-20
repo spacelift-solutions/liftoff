@@ -65,6 +65,10 @@ liftoff configure \
 liftoff finalize sensitive
 ```
 
+Some of those sensitive values arrive as **mounted files** rather than variables: a Spacelift variable value is single-line, so a captured value carrying a newline is translated into a mounted file on its stack or context plus export hooks on that owner (see [mutate](mutate.md#when-a-captured-value-turns-out-to-be-multi-line)).
+`finalize sensitive` pushes the file the same way it pushes a secret — write-only, unreadable once set — but pushing the file is only half of it: **the export hooks have to already be live**, which means the `liftoff generate` and `liftoff publish` lap that `mutate` asks for must have happened first.
+Push the file without the hooks and nothing reads it back, so the run finds no such variable.
+
 Any sensitive value still empty in the store is reported as skipped rather than pushed — set those in Spacelift directly.
 Variable-set (context) secrets need `mutate --allow-mutation context-secrets` to have run; without it they arrive empty and are skipped here.
 Every skip is **named**: the report lists each skipped value (kind, id, name) and why it was skipped, so "N skipped" is never a number you have to bisect.

@@ -72,6 +72,11 @@ Two behaviors worth knowing:
   One caveat it names for you: clobber resets the store, not the files you've already generated, so after a migrated batch those files stay on disk describing an estate the re-discover no longer matches — re-generate, or clobber the output too, to keep them in step.
 - **Re-discovering after migrating a batch is additive.**
   It refreshes entity data, skips nothing you've staged or migrated, and picks up new source entities — so the next batch starts from a current picture.
+- **A multi-line variable value becomes a mounted file, not a variable.**
+  A Spacelift variable value is single-line, so any value carrying a newline is translated: discover records it as a mounted file at `liftoff/<owner-id>/<NAME>` under `/mnt/workspace/` on its stack or context, and gives that owner `before_init` and `before_apply` hooks that export it back under its own name.
+  It is one or the other — the value is never also recorded as a variable — and inside the run it is still an ordinary environment variable.
+  That is why `Mounted Files` can count more than the source has files of its own.
+  Sensitive values come over masked, so their newlines only surface at capture; [`mutate`](mutate.md#when-a-captured-value-turns-out-to-be-multi-line) does the same translation there, and that one costs an extra `generate` and `publish` lap.
 - **Teams, agent pools, policies, and run tasks come over as audit-only data.**
   Discover records your TFC teams (and their access), agent pools, policies and policy sets, and run tasks, but the kit never generates from them — TFC RBAC doesn't map 1:1 onto Spacelift, a worker pool is stood up separately, policy bodies are Rego in Spacelift (a different language from Sentinel/OPA) so they don't translate automatically, and a run task's external callout is reconnected as a separately provisioned integration.
   [`audit`](audit.md) surfaces each so you can recreate them deliberately; nothing is placed in a space.
