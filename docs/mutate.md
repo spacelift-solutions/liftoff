@@ -166,14 +166,28 @@ Module Git Versions
   Unrecoverable (1)
       Module   spacelift-stack
       Version  0.3.0
-      Reason   no tag matching 0.3.0 found in the repository
+      Reason   no tag matching 0.3.0 among the 7 tag(s) at https://github.com/Apollorion/spacelift-stack.git
       URL      https://app.terraform.io/app/Apollorion/registry/modules/private/Apollorion/spacelift-stack/terraform
 ```
 
 Unlike `secrets`, this **doesn't touch the source** — it reads from the VCS — so it takes no restore point and needs no revert.
 It's additive: the rest of `mutate` runs as it always does, so the run also reports whatever it captured for the staged batch.
-It needs a `vcs.token` (a PAT with read access to the module repositories); `liftoff` picks the right git username per provider, and `vcs.host` covers self-hosted providers (GitHub Enterprise, a self-managed GitLab, Bitbucket Data Center).
+It needs a `vcs.token` (a PAT with read access to the module repositories); `liftoff` picks the right git username per provider.
+
+The host usually needs no configuration: it comes from the module's own repository address, and is used only once one of your Spacelift VCS integrations reaches that same host — the token is never sent to a host only the source vouches for.
+Set `vcs.host` when there is no such match, or to override the choice: a self-hosted instance whose repository addresses name a hostname you don't reach it on is the usual reason.
+
+Azure DevOps needs one thing more, because it addresses a repository as `<organization>/<project>/_git/<repository>` and the source records only the project and the name.
+The organization is read from the repository's own address, which is enough for almost every module; when a module carries none, set it on the host:
+
+```bash
+liftoff configure --set vcs.host=dev.azure.com/<organization>
+```
+
+An Azure DevOps Server collection goes in the same place — `vcs.host=ado.example.com/tfs/DefaultCollection` — and the legacy `<organization>.visualstudio.com` addresses need nothing, since they carry the organization in the hostname.
+
 Versions whose module has no VCS connection, or whose tag no longer resolves, are reported here and surfaced by [`liftoff audit`](audit.md) — never silently dropped.
+A reason names the address that was read and how many tags it held, so "the tag is gone" stays distinguishable from "that address is not the repository".
 Each dead end is also **recorded on the version itself**, so [`liftoff status`](README.md#commands-that-work-at-any-point) counts it apart from a version not yet resolved and `liftoff model list --kind module_version` shows the reason; a later run that does resolve the tag clears the record.
 
 Pushing the captured values into the live Spacelift stacks is a separate finalize step (see [finalize](finalize.md)).

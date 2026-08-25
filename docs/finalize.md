@@ -89,6 +89,17 @@ If the retries are exhausted the failure says so — unlock that stack in Spacel
 A lock Spacelift _refuses_ is not retried: something is already holding it, and that needs a person.
 Progress goes to stderr — add `-v` to watch each stack go by, and `-vv` for each upload and import.
 
+Stacks are pushed **five at a time** by default rather than one after another, which is what keeps a large batch moving at the last step of a cut-over.
+The width is `spacelift.push_concurrency`, any whole number from 1 to 50:
+
+```bash
+liftoff configure --set spacelift.push_concurrency=10
+```
+
+Raising it finishes sooner and costs two things — a captured state is megabytes, and that many are held in memory at once, so peak memory scales with the width; and the account sees that many imports at a time, which a busy one may rate-limit (if pushes start failing with a rate-limit message, lower it).
+Setting it to `1` restores the strictly sequential run.
+Whatever the width, the report reads in the same order every time — the batch's order, not whichever stack happened to finish first.
+
 It needs the same Spacelift credentials as above:
 
 ```bash

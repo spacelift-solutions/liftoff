@@ -109,11 +109,11 @@ Resolving a module's versions reads its repository over git. These report what t
 | Code | What it means | What to do |
 | --- | --- | --- |
 | `vcs_auth_failed` | The git provider rejected the configured token. | Check the token has read access to the module repositories. |
-| `vcs_host_required` | The provider is self-hosted, so its host cannot be assumed. | Set the VCS host with `liftoff configure --set vcs.host=<host>`. |
+| `vcs_host_required` | The git host is unknown, or the only host on offer is one the destination account does not reach — a token is never sent to a host only the source vouches for. | Set the VCS host with `liftoff configure --set vcs.host=<host>`. |
 | `vcs_http_error` | The git provider answered with an HTTP status the kit cannot use. | The status is in the error; retry, and check the repository if it persists. |
 | `vcs_incomplete` | The module has no repository connection to resolve versions from. | It was published without one, so its versions cannot be backfilled; create them in Spacelift by hand if they are needed. |
 | `vcs_provider_unsupported` | Module versions cannot be resolved automatically for that git provider. | Create the module versions in Spacelift by hand, pointing each at its tag's commit. |
-| `vcs_repo_not_found` | The git provider has no repository at the address the model gives. | Confirm the repository still exists, and set the VCS host for a self-hosted installation. |
+| `vcs_repo_not_found` | The git provider has no repository at the address read — it either answered 404 or advertised no refs at all. | Confirm the repository still exists, and that the host in the message is the right one. |
 | `vcs_unreachable` | The git provider could not be reached. | Check network connectivity and the repository address, then retry. |
 
 ## Spacelift
