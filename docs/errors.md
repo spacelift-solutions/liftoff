@@ -34,27 +34,27 @@ The command, its flags, or the entity it named. Nothing has happened yet, and re
 
 | Code | What it means | What to do |
 | --- | --- | --- |
-| `beta_only` | The requested surface is in beta and needs explicit consent. | Re-run with `--beta`. |
+| `beta_only` | This feature is in beta and needs explicit consent. | Re-run with `--beta`. |
 | `entity_not_found` | No entity with that id is in the local store. | Run `liftoff discover` first, or check the id with `liftoff model list`. |
-| `error_finding` | The flag named findings that are error level, which it does not accept. | Error findings block generation: accept them with `--ignore-finding`, or fix or unstage them. |
+| `error_finding` | The flag only accepts warning or info findings, but an error finding was selected. | Error findings block generation. Accept them with `liftoff audit --ignore-finding <rule[@kind][:entity]>`, or fix or unstage them. |
 | `field_not_settable` | The named field cannot be written. | The error says why; write a field the entity allows, or correct it at the source and re-discover. |
-| `invalid_arguments` | The command's positional arguments are not the shape it takes. | The error says the shape expected; re-run with arguments in that form. |
+| `invalid_arguments` | The command's positional arguments are not in the form it expects. | The error shows the expected form. Run the command again with arguments in that form. |
 | `invalid_flag` | A flag was given a value it does not accept. | The error lists the values the flag takes. |
 | `invalid_value` | The value cannot be held by the field it was written to. | Pass a value the field accepts; the error says what is wrong with this one. |
 | `malformed_selector` | A selector could not be parsed. | The error gives the form the selector takes and an example. |
-| `no_selectors` | The command names no entity to act on. | Name at least one entity as `<kind>:<id>`, or pass the flag that means all of them. |
-| `no_such_finding` | The selector matches no finding the current audit reports. | Run `liftoff audit` to see current findings: this one may already be fixed, so drop the flag. |
-| `not_addressable` | That kind describes the destination account and carries no id to address one by. | List them instead with `liftoff model list --kind <kind>`. |
-| `not_migratable` | The named kind is not a unit a batch can hold. | Name a space, stack, module, or context; leaves follow their owner. |
-| `nothing_to_approve` | Nothing is waiting on approval under that key. | Run the command that needs it first: it records what it wants approved. |
-| `unknown_capability` | No mutation capability answers to that name in this build. | The error lists the capabilities this build carries. |
-| `unknown_field` | The entity carries no field of that name. | The error lists the fields it does carry. |
+| `no_selectors` | No entity was specified for the command. | Specify at least one entity as `<kind>:<id>`, or pass the flag that selects all entities. |
+| `no_such_finding` | The selector matches no finding the current audit reports. | Run `liftoff audit` to see current findings. If this one was fixed, remove the flag. |
+| `not_addressable` | That kind describes the whole destination account and has no id for an individual record. | List them instead with `liftoff model list --kind <kind>`. |
+| `not_migratable` | The named kind is not a unit a batch can hold. | Choose a space, stack, module, or context. Child entities are included with their owner. |
+| `nothing_to_approve` | Nothing is waiting on approval under that key. | Run the command that requires approval first. It creates the approval request. |
+| `unknown_capability` | No mutation capability with that name exists in this build. | The error lists the available capabilities. |
+| `unknown_field` | The entity has no field with that name. | The error lists the available fields. |
 | `unknown_kind` | That is not an entity kind. | The error lists the kinds; `liftoff model kinds` lists them too. |
 | `unknown_rule` | No audit rule is registered under that id. | The error lists the registered rules. |
-| `unknown_source` | No source answers to that id in this build. | `liftoff sources` lists the sources this build carries. |
-| `unknown_topic` | No guidance page answers to that topic. | Run `liftoff skills` with no topic to list them. |
-| `value_mismatch` | The field does not hold the value the guard expects, so the write was refused. | Read the entity and pass the value it actually holds, or drop the guard to write regardless. |
-| `warning_finding` | The flag named findings that are only warning level, which it does not accept. | Warnings generate working code and need no ignoring; quiet a reviewed one with `--acknowledge-finding`. |
+| `unknown_source` | No source with that id exists in this build. | `liftoff sources` lists the available sources. |
+| `unknown_topic` | No guidance page exists for that topic. | Run `liftoff skills` with no topic to list them. |
+| `value_mismatch` | The field does not hold the value the guard expects, so the write was refused. | Read the entity and pass its current value, or remove `--from` to write without checking. |
+| `warning_finding` | The flag only accepts error findings, but a warning finding was selected. | Warnings do not block generation. Hide a reviewed warning with `liftoff audit --acknowledge-finding <rule[@kind][:entity]>`. |
 
 ## The workspace's configuration
 
@@ -62,13 +62,13 @@ A key in `config.yaml` is missing, unparsable, or wrong. `liftoff configure vali
 
 | Code | What it means | What to do |
 | --- | --- | --- |
-| `invalid_config` | A configured value is not usable as it stands. | Set a valid value with `liftoff configure --set <key>=<value>`. |
-| `malformed_config` | The configuration file exists but cannot be parsed. | Fix the YAML by hand, or re-run `liftoff configure`. |
+| `invalid_config` | A configured value cannot be used. | Set a valid value with `liftoff configure --set <key>=<value>`. |
+| `malformed_config` | The configuration file exists but cannot be parsed. | Fix the YAML manually, or run `liftoff configure` again. |
 | `missing_config` | A configuration key this step needs is not set. | Set each key the error names with `liftoff configure --set <key>=<value>`. |
 | `no_config_file` | The workspace has no configuration file. | Run `liftoff init` to scaffold the workspace, then `liftoff configure`. |
 | `no_source_configured` | No source is selected in the workspace configuration. | Run `liftoff configure --source <id>`; `liftoff sources` lists them. |
 | `unresolved_env` | The configuration references environment variables that are not set. | Export the variables the error names, then retry. |
-| `validate_failed` | Configuration validation failed. | The error carries the per-key report; fix what it marks and re-run `liftoff configure validate`. |
+| `validate_failed` | Configuration validation failed. | Review the per-key report, fix the marked settings, and run `liftoff configure validate` again. |
 
 ## Where the migration has got to
 
@@ -76,8 +76,8 @@ The step is fine, but the migration is not at the point it needs — nothing is 
 
 | Code | What it means | What to do |
 | --- | --- | --- |
-| `approval_needs_a_person` | Approving a source-mutating step is a person's decision, and the caller looks like an agent. | Ask the user to run the approval in a terminal of their own; a shell escape from inside an agent session is refused the same way. |
-| `audit_errors` | Error-level audit findings would make the generated output invalid or rejected at apply time. | Fix the findings, unstage the units they belong to, or accept each explicitly with `--ignore-finding`. |
+| `approval_needs_a_person` | Approving a source-mutating step is a person's decision, and the caller looks like an agent. | Ask the user to run the approval in their own terminal. Running it from an agent session is also rejected. |
+| `audit_errors` | Error-level audit findings would make the generated output invalid or rejected at apply time. | Fix the findings, unstage the units they belong to, or accept each explicitly with `liftoff audit --ignore-finding <rule[@kind][:entity]>`. |
 | `comprehension_required` | The step expects its guidance page to have been read first. | Run the command the error names, read the page, and pass the token it prints as `--proof-token`. |
 | `comprehension_stale` | The guidance page changed after the proof token was minted. | Read the page again and pass the new token. |
 | `consent_required` | The step needs a person's recorded approval before it runs. | Ask the user to run the approval command the error names in their own terminal; it prints what it is approving. |
@@ -97,9 +97,9 @@ The source refused a request, could not be reached, or answered with something u
 | `invalid_credentials` | The source rejected the configured credential. | Check the credential is valid and has access, then re-run `liftoff configure`. |
 | `malformed_response` | The source answered with something that is not the document its API promises. | Confirm the configured endpoint is the source's API, then retry. |
 | `not_user_token` | The configured source credential is not the kind of token an export can run with. | Create a credential that identifies a person and set it with `liftoff configure`. |
-| `rate_limited` | The source is rate limiting the kit's requests. | Reads back off and retry on their own; if it persists, lower the source's requests-per-second and re-run. |
-| `source_rejected` | The source refused the request outright, and retrying will not change that. | Check the configured credential may act on this entity. |
-| `source_unavailable` | The source failed in a way that is usually transient. | Reads retry on their own; re-run the command if it persists. |
+| `rate_limited` | The source is rate limiting the kit's requests. | The kit backs off and retries automatically. If the error continues, lower the source's requests-per-second and run the command again. |
+| `source_rejected` | The source refused the request outright, and retrying will not change that. | Check that the configured credential can act on this entity. |
+| `source_unavailable` | The source failed in a way that is usually transient. | The kit retries read requests automatically. Run the command again if the error continues. |
 | `source_unreachable` | The source could not be reached at all. | Check the configured endpoint and network connectivity, then retry. |
 
 ## The git provider
@@ -109,11 +109,11 @@ Resolving a module's versions reads its repository over git. These report what t
 | Code | What it means | What to do |
 | --- | --- | --- |
 | `vcs_auth_failed` | The git provider rejected the configured token. | Check the token has read access to the module repositories. |
-| `vcs_host_required` | The git host is unknown, or the only host on offer is one the destination account does not reach — a token is never sent to a host only the source vouches for. | Set the VCS host with `liftoff configure --set vcs.host=<host>`. |
-| `vcs_http_error` | The git provider answered with an HTTP status the kit cannot use. | The status is in the error; retry, and check the repository if it persists. |
-| `vcs_incomplete` | The module has no repository connection to resolve versions from. | It was published without one, so its versions cannot be backfilled; create them in Spacelift by hand if they are needed. |
-| `vcs_provider_unsupported` | Module versions cannot be resolved automatically for that git provider. | Create the module versions in Spacelift by hand, pointing each at its tag's commit. |
-| `vcs_repo_not_found` | The git provider has no repository at the address read — it either answered 404 or advertised no refs at all. | Confirm the repository still exists, and that the host in the message is the right one. |
+| `vcs_host_required` | The git host is unknown, or the destination account cannot reach the host named by the source. The kit will not send a token to an unconfirmed host. | Set the VCS host with `liftoff configure --set vcs.host=<host>`. |
+| `vcs_http_error` | The git provider answered with an HTTP status the kit cannot use. | Run the command again. If the error continues, check the repository shown in the error. |
+| `vcs_incomplete` | The module has no repository connection to resolve versions from. | It was published without a repository, so its versions cannot be resolved. Create them manually in Spacelift if needed. |
+| `vcs_provider_unsupported` | Module versions cannot be resolved automatically for that git provider. | Create the module versions manually in Spacelift, pointing each one to its tag's commit. |
+| `vcs_repo_not_found` | The git provider has no repository at the configured address. It returned 404 or advertised no refs. | Confirm the repository still exists, and that the host in the message is the right one. |
 | `vcs_unreachable` | The git provider could not be reached. | Check network connectivity and the repository address, then retry. |
 
 ## Spacelift
@@ -124,15 +124,15 @@ The destination refused a call or could not be reached. Every one of these carri
 | --- | --- | --- |
 | `admin_run_failed` | The admin stack's run ended without applying the module. | Read the run's log, fix what it reports, then re-run `liftoff generate` and `liftoff publish`. |
 | `admin_run_in_flight` | An earlier admin-stack run is still working, so this one cannot plan yet. | Let that run finish, then re-run `liftoff publish`. |
-| `admin_run_superseded` | A newer admin-stack run has replaced the one this step was following. | Something else pushed to the admin stack's repository; re-run `liftoff publish` to plan against the current head. |
+| `admin_run_superseded` | A newer admin-stack run has replaced the one this step was following. | Another commit was pushed to the admin stack's repository. Run `liftoff publish` again to plan the current revision. |
 | `no_admin_run` | The admin stack has no run for the revision this step needs. | Re-run `liftoff publish` to plan the current module, then confirm the plan it shows. |
 | `repo_not_managed_by_liftoff` | A repository with the configured name exists but is not labelled as the kit's. | Point the kit at a different name, or add the label the error names to hand the existing one over. |
-| `run_not_awaiting_confirmation` | The admin-stack run is not parked at a plan, so it cannot be confirmed. | Re-run `liftoff publish` for a fresh plan and token. |
-| `spacelift_api_error` | Spacelift refused the call, and its answer does not say which kind of refusal it is. | Spacelift's own message is in the error; re-run with `-vv` to log the request. |
+| `run_not_awaiting_confirmation` | The admin stack run is not waiting for plan confirmation. | Re-run `liftoff publish` for a fresh plan and token. |
+| `spacelift_api_error` | Spacelift refused the call, and its answer does not say which kind of refusal it is. | Review Spacelift's message in the error. Run again with `-vv` to log the request. |
 | `spacelift_auth_failed` | Spacelift rejected the configured API key. | Check the key id and secret, and that the key is enabled in the account. |
 | `spacelift_conflict` | Spacelift already holds the entity the kit tried to create. | Delete it in Spacelift to have the kit recreate it, or label it so the kit adopts it. |
 | `spacelift_forbidden` | The API key is valid, but its role does not permit this. | Give the key admin on the space the entity belongs to, or configure a key that has it. |
-| `spacelift_http_error` | Spacelift answered with an HTTP status the kit cannot use. | The status is in the error; retry, and check the endpoint if it persists. |
+| `spacelift_http_error` | Spacelift answered with an HTTP status the kit cannot use. | Run the command again. If the error continues, check the endpoint shown in the error. |
 | `spacelift_malformed_response` | Spacelift's answer was not a usable GraphQL response. | Confirm the configured endpoint points at the account API, then retry. |
 | `spacelift_not_found` | Spacelift has no such entity, or the API key cannot see it. | Confirm it exists in the account and that the key's role covers the space it belongs to. |
 | `spacelift_rejected` | Spacelift rejected a value the kit sent. | The value comes from the local store: correct it with `liftoff audit --repair` or `liftoff model set`, then re-run. |
@@ -143,15 +143,15 @@ The destination refused a call or could not be reached. Every one of these carri
 
 ## Capturing from the source, and undoing it
 
-The one step that changes the source records a restore point first and reverts it afterwards. These report that lifecycle; `liftoff restore` is what finishes an interrupted one.
+Source mutations record a restore point first and revert afterward. These codes report that process; run `liftoff restore` to finish an interrupted mutation.
 
 | Code | What it means | What to do |
 | --- | --- | --- |
 | `backup_failed` | The restore point that must exist before the source is touched could not be written or verified. | Check the workspace directory is writable and has space, then retry; nothing at the source was changed. |
-| `extraction_timeout` | No capture job arrived for an entity within the time allowed. | Re-run; if it persists, the source may not permit the runs a capture needs. |
-| `invalid_restore_point` | A recorded restore point is unrecognized or carries no payload, so it cannot be reverted automatically. | Report it; the entity may need cleaning up at the source by hand. |
+| `extraction_timeout` | No capture job arrived for an entity within the time allowed. | Run the command again. If the error continues, the source may not permit the runs required for capture. |
+| `invalid_restore_point` | A recorded restore point is unrecognized or has no payload, so it cannot be reverted automatically. | Report it; the entity may need to be cleaned up manually at the source. |
 | `pending_restore_points` | An earlier source-mutating run did not finish reverting. | Run `liftoff restore` to put the source back, then retry. |
-| `restore_incomplete` | Some mutations were reverted and others are still pending. | Re-run the restore to retry the rest; if it persists, the entities it lists may need cleaning up at the source by hand. |
+| `restore_incomplete` | Some mutations were reverted and others are still pending. | Run the restore again. If errors continue, the listed entities may need to be cleaned up manually at the source. |
 | `revert_failed` | A temporary change made for a capture could not be undone. | Run `liftoff restore` to finish reverting the source. |
 
 ## The local workspace
@@ -169,7 +169,7 @@ The store and the generated module on your own disk.
 
 ## What was discovered
 
-The estate in the store cannot be expressed as it stands — a reference with nothing behind it, a cycle, two entities that would collide. `liftoff audit` charts the repair path for these.
+The estate in the store cannot be migrated because it contains a missing reference, a cycle, or entities that would collide. Run `liftoff audit` for specific fixes.
 
 | Code | What it means | What to do |
 | --- | --- | --- |
@@ -177,18 +177,18 @@ The estate in the store cannot be expressed as it stands — a reference with no
 | `dangling_attachment` | An attachment points at an entity the store does not hold. | Re-run `liftoff discover` so related entities are captured together, or `--clobber` for a clean slate. |
 | `dangling_space` | An entity references a space the store does not hold. | Re-run `liftoff discover --clobber` so every referenced space is present. |
 | `invalid_space` | A space's parent chain forms a cycle, so it has no place in the tree. | A space cannot be its own ancestor: re-discover spaces with `liftoff discover --clobber`. |
-| `unrepresentable_entity` | A discovered row cannot be expressed in the model as it stands. | Re-run `liftoff discover` to recapture it, and report it if it persists: the row cannot be migrated as it is. |
+| `unrepresentable_entity` | A discovered row cannot be represented in the migration model. | Run `liftoff discover` again to recapture it. If the error continues, report it; the row cannot be migrated. |
 
-## The browser surface
+## The browser UI
 
-`liftoff ui` only. The CLI is unaffected by all of these.
+`liftoff ui` only. The CLI is unaffected by these errors.
 
 | Code | What it means | What to do |
 | --- | --- | --- |
-| `ui_cannot_nest` | A run already driven by a browser session cannot serve another. | Run it from a terminal of your own. |
-| `ui_listen_failed` | The browser surface could not listen on the requested port. | Pass `--port 0`, or another free port. |
-| `ui_needs_a_person` | The browser surface is a person's, and the caller looks like an agent. | Agents run the commands directly; a person can open the surface in their own terminal. |
-| `ui_server_failed` | The browser surface stopped with an error. | The error carries what it reported; re-run, and use the commands directly if it persists. |
+| `ui_cannot_nest` | A browser UI session cannot start another browser UI session. | Run the command from a separate terminal. |
+| `ui_listen_failed` | The browser UI could not listen on the requested port. | Pass `--port 0`, or another free port. |
+| `ui_needs_a_person` | The browser UI must be opened by a person, but the caller looks like an agent. | Agents should run commands directly. A person can open the UI from their own terminal. |
+| `ui_server_failed` | The browser UI stopped with an error. | Run it again. If the error continues, use the commands directly. |
 
 ## Bugs in liftoff
 
@@ -196,5 +196,5 @@ These should never reach you. Each one means the kit used itself incorrectly, an
 
 | Code | What it means | What to do |
 | --- | --- | --- |
-| `internal_error` | Something inside the kit was used in a way that cannot happen if it is correct. | This is a bug: report it with the message above. Nothing at the source was changed. |
-| `not_implemented` | A seam that is scaffolded but not built was reached. | The error names where its contract is written down; nothing can run through this path in this build. |
+| `internal_error` | The kit reached an internal state that should be impossible. | This is a bug: report it with the message above. Nothing at the source was changed. |
+| `not_implemented` | This command or feature is not implemented in this build. | The error identifies where the planned behavior is documented. |

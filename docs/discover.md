@@ -14,6 +14,12 @@ This is a **read-only** pull and the only network-bound read — its duration sc
 It is idempotent and resumable: if it dies or you kill it, run it again and it picks up where it left off, **preserving any staging choices you've already made**.
 Progress goes to stderr: add `-v` to watch it work, and repeat for more detail (`-vv`).
 
+<!-- liftoff:skill terraform -->
+Terraform Cloud and Terraform Enterprise organizations and projects become spaces.
+Workspaces become stacks in those spaces.
+The Terraform version determines each stack's workflow tool.
+<!-- liftoff:skill /terraform -->
+
 ```text
 Source  terraform
 
@@ -49,8 +55,20 @@ Next
 
 `Counts` is what actually landed in the store, read back after the run.
 `Spacelift Counts` is the other end of the pipe: what your Spacelift account has, which discover reads before it touches the source.
-`Sensitive Values` is the report on the one thing discover cannot take: secret values.
-Discover **never touches the source**, so sensitive values always come over empty — the notes say exactly what that means and how to capture them later (stage what you want, then [`liftoff mutate`](mutate.md)).
+`Sensitive Values` reports which sensitive values the source returned, which are empty, and which a later capability captured.
+The notes say what is missing and whether the configured source offers a way to capture it later (stage what you want, then [`liftoff mutate`](mutate.md)).
+
+<!-- liftoff:skill terraform -->
+Terraform Cloud and Terraform Enterprise hide sensitive variable values.
+Discover records those variables without values and reports how many still need to be captured.
+Use `liftoff mutate` to capture them later.
+
+Spacelift variables cannot store multiline values.
+Liftoff converts each multiline workspace or variable-set value into a mounted file under `/mnt/workspace/liftoff/`.
+It also adds `before_init` and `before_apply` hooks to export the file contents under the original variable name.
+The value is stored only as a mounted file, not as both a file and a variable.
+For this reason, the Mounted Files count can be higher than the number of source files.
+<!-- liftoff:skill /terraform -->
 
 Discover is deliberately whole-estate and read-only: you can't choose what to migrate until you can see everything, and pulling it all is safe because nothing is mutated.
 From here you pick a batch with [`liftoff batch`](batch.md); the heavy, source-touching work ([`mutate`](mutate.md)) runs later and only for what you stage.
@@ -68,7 +86,7 @@ Two behaviors worth knowing:
   In practice that matters: `publish` creating the managed repository's VCS integration takes the account's integration count up by one between batches, and a re-discover is what notices, rather than binding the next batch's stacks against a stale inventory.
   The `liftoff discover --clobber` hint it offers is the start-fresh option, colored as a caution because it throws away the local results _and_ your staging.
   Because clobber discards captured secret values and state — the work an approved, source-mutating [`mutate`](mutate.md) run went and got — it now asks a person to approve it, and the ask counts exactly what will be lost (captured sensitive values, captured state blobs, staged units, migrated units) so you approve a real number, not a warning.
-  A workspace with nothing captured or staged still asks, but says the loss is nothing.
+  A migration with nothing captured or staged still asks, but says the loss is nothing.
   One caveat it names for you: clobber resets the store, not the files you've already generated, so after a migrated batch those files stay on disk describing an estate the re-discover no longer matches — re-generate, or clobber the output too, to keep them in step.
 - **Re-discovering after migrating a batch is additive.**
   It refreshes entity data, skips nothing you've staged or migrated, and picks up new source entities — so the next batch starts from a current picture.
@@ -76,9 +94,12 @@ Two behaviors worth knowing:
   A Spacelift variable value is single-line, so any value carrying a newline is translated: discover records it as a mounted file at `liftoff/<owner-id>/<NAME>` under `/mnt/workspace/` on its stack or context, and gives that owner `before_init` and `before_apply` hooks that export it back under its own name.
   It is one or the other — the value is never also recorded as a variable — and inside the run it is still an ordinary environment variable.
   That is why `Mounted Files` can count more than the source has files of its own.
-  Sensitive values come over masked, so their newlines only surface at capture; [`mutate`](mutate.md#when-a-captured-value-turns-out-to-be-multi-line) does the same translation there, and that one costs an extra `generate` and `publish` lap.
-- **Teams, agent pools, policies, and run tasks come over as audit-only data.**
-  Discover records your TFC teams (and their access), agent pools, policies and policy sets, and run tasks, but the kit never generates from them — TFC RBAC doesn't map 1:1 onto Spacelift, a worker pool is stood up separately, policy bodies are Rego in Spacelift (a different language from Sentinel/OPA) so they don't translate automatically, and a run task's external callout is reconnected as a separately provisioned integration.
-  [`audit`](audit.md) surfaces each so you can recreate them deliberately; nothing is placed in a space.
+  When a source masks a sensitive value, its newlines only surface at capture; [`mutate`](mutate.md#when-a-captured-value-turns-out-to-be-multi-line) does the same translation there, and that one costs an extra `generate` and `publish` lap.
+
+<!-- liftoff:skill terraform -->
+Teams, agent pools, policies, and run tasks are recorded as audit-only data.
+Liftoff does not generate them because Terraform Cloud access, execution, policy, and external-callout concepts do not map directly to Spacelift resources.
+`liftoff audit` reports them so you can recreate the intended behavior deliberately.
+<!-- liftoff:skill /terraform -->
 
 From here, no command touches the network until the module is handed to Spacelift: [batch](batch.md), [audit](audit.md), and [generate](generate.md) all read the store you just filled.

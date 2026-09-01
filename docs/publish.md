@@ -38,6 +38,7 @@ If a repo or stack already exists under the name it wants without the label, it 
 liftoff won't add that label to anything it didn't create; taking ownership of your entities is your call, not the tool's.
 
 Publish is **idempotent and re-runnable**: it commits only the files that changed (all of them the first time), and when nothing has changed since the last publish it's a no-op — `No Op yes`, cheap enough to run any time to check you're current.
+If the unchanged revision's last run stopped without finishing, publishing starts a replacement run and returns its new plan and proof token.
 Re-generate after new repairs, then `liftoff publish` again to push the delta.
 
 Publish stops at the plan and **applies nothing**.

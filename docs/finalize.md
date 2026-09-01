@@ -181,6 +181,11 @@ Expect this page to grow.
 ## Dispose of the workspace when you're done
 
 When the last batch is migrated and the estate is fully on Spacelift, one thing is left: the `./.liftoff/` workspace.
+Before disposing of it, apply any post-migration adoption changes you want to
+keep. [`transform workflow-tool`](transform.md), for example, can convert
+already-migrated units to OpenTofu after you explicitly re-stage them; it then
+sends that batch through `audit`, `generate`, `publish`, and `finalize` once
+more.
 By now it is the most sensitive artifact the migration produced, all of it **unencrypted on your disk**:
 
 - **`config.yaml`** — the source and Spacelift settings, including any API token pasted in rather than kept as an environment reference.

@@ -5,28 +5,53 @@ Step 10 of [the migration walkthrough](README.md): run the steps that reach the 
 Each is a **capability the configured source declares**, each is opt-in, and nothing runs unless you name it — so this step runs late, only for the batch you've committed to.
 
 Run `liftoff sources` to see what the configured source offers.
-Terraform Cloud/Enterprise declares four: `secrets`, `context-secrets`, `state`, and `module-git-versions`.
 
-## Step 10 — capture the staged batch's secrets and state
+<!-- liftoff:skill terraform -->
+Terraform Cloud and Terraform Enterprise declare four capabilities: `secrets`, `context-secrets`, `state`, and `module-git-versions`.
+
+A typical capture runs its three data-recovery capabilities together:
 
 ```bash
 liftoff mutate --allow-mutation secrets,context-secrets,state
 ```
+<!-- liftoff:skill /terraform -->
 
-`--allow-mutation` accepts a comma-separated list or repeated flags — same shape as `--ignore-finding`.
+## Step 10 — run capabilities for the staged batch
 
-The source masks sensitive values, so discover left them empty.
-`mutate` recovers them for the **staged batch only**, and the two kinds of secret are separate opt-ins because they change different amounts at the source.
+```bash
+liftoff mutate --allow-mutation <name>
+```
 
-**`secrets`** covers values set on a workspace: it reads the batch back from the local store, briefly registers a temporary agent, flips each staged workspace to it to read the plaintext values, fills them into the store, and **restores every workspace before finishing**.
+`--allow-mutation` accepts a comma-separated list or repeated flags, so name every capability this run should use.
 
-**`context-secrets`** covers values set on a variable set, which no real workspace can be trusted to reveal — a workspace variable of the same name takes precedence, so a value read there might not be the set's.
-Instead it creates **one throwaway workspace per organization** with no variables of its own, attaches each staged variable set to it in turn, reads the plaintext, then detaches and deletes the workspace.
-Your real workspaces are never touched, and a variable set never loses an attachment it already had.
-A variable set that applies organization-wide is never attached at all, since it already applies.
+When discover reports empty sensitive values, use the capture capabilities the configured source declares.
+They act on the **staged batch only**.
+
+<!-- liftoff:skill terraform -->
+Terraform Cloud and Terraform Enterprise hide sensitive values on workspace variables and variable-set variables.
+Liftoff captures these two kinds of values separately.
+
+`--allow-mutation secrets` captures values from staged workspaces.
+Liftoff temporarily switches each workspace to agent execution mode, reads the values through the agent protocol, and restores the original settings.
+
+`--allow-mutation context-secrets` captures values from staged variable sets.
+A normal workspace run cannot identify these values reliably because a workspace variable with the same name takes precedence.
+Liftoff instead creates temporary workspaces with no variables of their own.
+It attaches each variable set, captures the values, then removes the attachment and deletes the temporary workspace.
+Global variable sets already apply to the temporary workspace and do not need to be attached.
+
+Capture time grows with the number of staged workspaces and variable sets that contain sensitive values.
+If a variable set and a global variable set define the same name, Liftoff leaves the value empty rather than risk capturing the wrong one.
+
+Multiline sensitive values are converted to mounted files when they are captured.
+Liftoff also adds hooks to the owning stack or context so the file contents are exported under the original variable name.
+Run `liftoff generate` and `liftoff publish` again before `liftoff finalize sensitive`.
+Otherwise, the file is uploaded without the hooks that expose it to runs.
+<!-- liftoff:skill /terraform -->
 
 Captured values live only in the local store — never logged, never printed (it reports counts, never values).
 
+<!-- liftoff:skill terraform -->
 ```text
 Source  terraform
 
@@ -49,6 +74,7 @@ Next
   $ liftoff finalize state
   $ liftoff finalize staged
 ```
+<!-- liftoff:skill /terraform -->
 
 **Run the finalize pushers before `finalize staged`, in that order.**
 The pushers (`finalize sensitive`, `finalize state`) act on **staged units only**, and `finalize staged` is the transition that flips the batch _out of_ staged (to migrated).
@@ -58,14 +84,19 @@ So push, then flip: `finalize staged` refuses until every captured secret and st
 
 `Captured` is what this run filled for the staged batch; the counts that remain `Empty` are for units you haven't staged — stage them and re-run to capture those too.
 
+<!-- liftoff:skill terraform -->
 A value can also stay empty when it cannot be attributed to one owner.
 If an organization-wide variable set and a staged one both define the same name, only one value reaches the run, so the kit reports the collision and leaves that variable empty rather than risk storing the wrong secret.
 Set those in Spacelift directly.
+<!-- liftoff:skill /terraform -->
 
 ## When some units can't be captured
 
 `mutate` captures everything it can and reports the rest.
 One entity the source refuses does not end the run: the units after it are still captured, and each failure comes back naming what it was and why.
+
+<!-- liftoff:skill terraform -->
+This capture shows failures from the Terraform source.
 
 ```text
 Source  terraform
@@ -86,6 +117,7 @@ Failures (2)
   │                 │                         │                    │ 7QpLm4XbHt2c9Y1a                                  │
   └─────────────────┴─────────────────────────┴────────────────────┴───────────────────────────────────────────────────┘
 ```
+<!-- liftoff:skill /terraform -->
 
 `Captured` plus `Skipped` always accounts for everything the staged batch put in scope, and `Failures` names the units that need another go.
 Re-run the same `mutate` command to retry just those; what was already captured is not captured twice.
@@ -102,6 +134,7 @@ A few things worth knowing:
 - **The opt-in is per run.**
   With no `--allow-mutation`, `mutate` does nothing and says so — absence is the safe path, never a prompt.
   It is a flag, not a setting: there is no config key that grants it, so consent belongs to the run in front of you rather than to whoever last edited `config.yaml`.
+<!-- liftoff:skill terraform -->
 - **`state` is opt-in too, though it changes nothing at the source.**
   It reaches the source and pulls each staged stack's whole state blob — your infrastructure data — so it asks first.
   `liftoff finalize state` has nothing to push without it.
@@ -119,6 +152,7 @@ Capabilities
       - never-applied (ws-legacy) — https://app.terraform.io/app/acme/workspaces/never-applied
       - sandbox (ws-sandbox) — https://app.terraform.io/app/acme/workspaces/sandbox
 ```
+<!-- liftoff:skill /terraform -->
 
 - **Every mutation is reverted, and reconcilable.**
   Each flip is backed up before it happens, so a crash mid-run is recoverable: `mutate` refuses to start while restore points are pending and points you at [`liftoff restore`](restore.md), which puts the source back exactly as it was.
@@ -133,7 +167,7 @@ The kit translates it instead: the value becomes a **mounted file** at `liftoff/
 Inside the run it is an ordinary environment variable of the same name — it just isn't a Spacelift variable, and it is never also created as one. It is one or the other.
 
 [`discover`](discover.md) already does this for values the source hands over in the clear.
-`mutate` does it for the **sensitive** ones: the source masks those, so their newlines only surface when the plaintext is captured here.
+When a capability captures a **sensitive** value, `mutate` does the same translation; any newlines only surface once the plaintext reaches the local store.
 A captured multi-line value becomes a **sensitive** mounted file — the content stays in the local store, never written into generated code, and [`liftoff finalize sensitive`](finalize.md) is what pushes it.
 
 **A mounted capture costs one extra lap through generate and publish.**
@@ -144,7 +178,8 @@ So re-run `liftoff generate` and `liftoff publish` to get the hooks into Spaceli
 
 Skip that lap and the failure is a quiet one: the file lands in Spacelift, nothing exports it, and the run sees no such variable.
 
-## Resolving module versions' commit SHAs
+<!-- liftoff:skill terraform -->
+## Terraform Cloud / Enterprise: resolving module versions' commit SHAs
 
 `mutate` is also where module version history is recovered, under a second opt-in capability:
 
@@ -189,5 +224,6 @@ An Azure DevOps Server collection goes in the same place — `vcs.host=ado.examp
 Versions whose module has no VCS connection, or whose tag no longer resolves, are reported here and surfaced by [`liftoff audit`](audit.md) — never silently dropped.
 A reason names the address that was read and how many tags it held, so "the tag is gone" stays distinguishable from "that address is not the repository".
 Each dead end is also **recorded on the version itself**, so [`liftoff status`](README.md#commands-that-work-at-any-point) counts it apart from a version not yet resolved and `liftoff model list --kind module_version` shows the reason; a later run that does resolve the tag clears the record.
+<!-- liftoff:skill /terraform -->
 
 Pushing the captured values into the live Spacelift stacks is a separate finalize step (see [finalize](finalize.md)).

@@ -20,7 +20,7 @@ With the demo batch staged `--all` and repaired, three stacks still have no repo
 ✗ Audit Errors  generate: 3 error-level audit finding(s) would make the output invalid or rejected at apply time
 
 Remediation
-  fix the findings (`liftoff audit` charts the repair path), unstage the offending units (`liftoff batch unstage <kind>:<id>`), or accept each explicitly with --ignore-finding <rule[:entity]> to render it annotated
+  fix the findings (`liftoff audit` charts the repair path), unstage the offending units (`liftoff batch unstage <kind>:<id>`), or accept each explicitly with `liftoff audit --ignore-finding <rule[@kind][:entity]>` to render it annotated
 
 Findings (3)
   ┌──────────────────────────────┬─────────────┬─────────────────────┬─────────────────────────────────────────────────┐
@@ -38,24 +38,29 @@ Next
 ```
 
 Warnings never block.
-For each error you have four ways forward: repair it ([audit](audit.md) — including per-entity `--set` for gaps like a missing repository), fix it at the source and re-discover, **unstage** the offending unit to leave it out of the batch, or accept it annotated with `--ignore-finding`.
-A finding is named by its rule id, optionally narrowed to one entity:
+For each error you have four ways forward: repair it ([audit](audit.md) — including per-entity `model set` for gaps like a missing repository), fix it at the source and re-discover, **unstage** the offending unit to leave it out of the batch, or accept it annotated from the audit step.
+A finding is named by its rule id, optionally narrowed by entity kind and id:
 
 ```bash
---ignore-finding stack-missing-vcs-repository                     # every entity with the finding
---ignore-finding stack-missing-vcs-repository:ws-oxRaEDV2f5uMHy5f # just this one
---ignore-finding stack-missing-vcs-repository,raw-git-missing-url # several rules at once
+liftoff audit --ignore-finding stack-missing-vcs-repository
+liftoff audit --ignore-finding stack-missing-vcs-repository@stack:ws-oxRaEDV2f5uMHy5f
+liftoff audit \
+  --ignore-finding stack-missing-vcs-repository@stack:ws-axzQMYTKvuxA9VDQ \
+  --ignore-finding raw-git-missing-url@module:mod-AJu96tYoVyzKPEjw
 ```
 
-`--ignore-finding` accepts a comma-separated list or repeated flags — same shape as `--allow-mutation`.
+The bare rule accepts every entity it currently flags.
+Prefer the `rule@entity-kind:entity-id` form when only one entity is ready to accept; repeat the flag for several exact findings.
+The kind qualifier prevents a stack and module that share a source id from sharing a decision.
 
-### `--ignore-finding` — generate it anyway, annotated
+### `audit --ignore-finding` — generate it anyway, annotated
 
 The affected entities are included on the understanding that the code needs hand-editing before it works.
 Every affected resource gets an annotation so the problem is visible exactly where it lives, and any required argument the source couldn't supply renders as an obvious `"REPLACE_ME"` placeholder — so the module still validates and the edit sites are unmistakable, rather than failing on a missing argument before it ever reaches Spacelift:
 
 ```bash
-liftoff generate --ignore-finding stack-missing-vcs-repository,raw-git-missing-url
+liftoff audit --ignore-finding stack-missing-vcs-repository
+liftoff generate
 ```
 
 ```text
@@ -100,27 +105,27 @@ resource "spacelift_stack" "my-amazing-workspace-local-no-vcs" {
 }
 ```
 
-`--ignore-finding` is the escape hatch for **errors**.
-To leave an entity out of the module entirely, don't accept it here — `unstage` it ([batch](batch.md)).
+`--ignore-finding` is the audit-time acceptance for **errors**.
+The decision persists in the local store, so later generate runs do not ask again.
+Undo it with `liftoff audit --revoke-finding rule@entity-kind:entity-id`; the finding becomes active and blocks again when it is an error.
+To leave an entity out of the module entirely, don't accept it — `unstage` it ([batch](batch.md)).
 Staging is the single exclusion axis, so there's no `--skip-finding`.
 Naming a finding that doesn't exist or a warning-level finding is a structured error — a mistaken flag never silently no-ops.
 
 **Warning findings never need `--ignore-finding`** — they generate working code and get the same in-place treatment (`# WARNING: ...`) automatically, e.g. a sensitive variable whose value wasn't captured.
 The generated module doubles as the migration's review document; those comments stay greppable even after you acknowledge the finding in the audit listing.
 
-### `--acknowledge-finding` — quiet a reviewed warning in the listing
+### `audit --acknowledge-finding` — quiet a reviewed warning in the listing
 
 Account-global warnings (teams, policies, run tasks, …) re-surface on every audit and generate listing for the rest of the migration.
 Once you've handled them, acknowledge so they stop being listing noise — the acknowledgement is persisted in the store and applies on later runs without repeating the flag:
 
 ```bash
 liftoff audit --acknowledge-finding stack-secret-missing-value
-# or at generate time:
-liftoff generate --acknowledge-finding stack-secret-missing-value
 ```
 
 Acknowledged findings leave the active audit list but still appear under `acknowledged`, and they still render as `# WARNING:` / `# INFO:` comments in the generated module.
-Only `warning` and `info` can be acknowledged; errors still need `--ignore-finding`.
+Only `warning` and `info` can be acknowledged; errors use `audit --ignore-finding`.
 A rule-wide selector expands to the entities that currently match — a newly discovered entity of the same rule still surfaces until you acknowledge it too.
 
 ### Every annotation is greppable
@@ -133,6 +138,7 @@ grep -rn '# \(ERROR\|WARNING\|sensitive\): ' .liftoff/data/generated
 ```
 
 Each hit names the rule (or the sensitive value) and points at the exact file and line.
+Findings for account facts or other subjects without their own generated resource are written to the root `liftoff.tf`, including `[kind:id]` beside the rule.
 The `"REPLACE_ME"` placeholders an ignored error leaves behind are the companion grep — the edit sites that must be filled before the code will work:
 
 ```bash
@@ -361,7 +367,7 @@ That is deliberate rather than decorative: the provider defaults `write_only` to
 The only values that end up write-only are the sensitive ones, which get there through `finalize sensitive`.
 
 **This output is a code review, not a black box.**
-Everything you decided upstream is visible in it: the repaired branches read `branch = "main"`, the module tool you configured is on the module, and every accepted risk is annotated in place — an ignored error sits as an `# ERROR:` comment directly above the resource that needs hand-editing.
+Everything you decided upstream is visible in it: the repaired branches read `branch = "main"`, the module tool you configured is on the module, and every accepted risk is annotated — directly above its resource when one exists, or in the root `liftoff.tf` with its target when it does not.
 Read the diff like a PR before applying it.
 
 If anything upstream changes — a re-discover, another repair, a moved stack — regenerate and diff; the store is the source of truth and the module is always just a render of it.

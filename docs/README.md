@@ -28,9 +28,15 @@ Migrations are **iterative**: discover once, then stage → audit → generate �
 7. **[Mutate](mutate.md)**: Capture the staged workspaces' secret values, which touches the source again (step 10).
 8. **[Finalize](finalize.md)**: Mark the batch migrated, then loop back to discover for the next batch (step 11).
 
+After staging a batch, or after every batch is migrated,
+**[Transform](transform.md)** can reshape the deployment — beginning with
+converting the selected stacks and modules to OpenTofu — before `generate` and
+`publish` apply that choice.
+
 Migrations are **iterative**: discover once, then batch/stage → audit → generate → publish/apply → mutate → finalize a batch at a time before coming back for the next.
 
-`liftoff skills <topic>` will point to the relevant pages, e.g. an agent asking for `discover` gets [discover.md](discover.md) verbatim.
+`liftoff skills <topic>` serves the relevant page with guidance for the configured source filled into it.
+For example, an agent asking for `discover` gets [discover.md](discover.md) plus that source's discovery details.
 
 If you're working with an agent, tell it to run `liftoff skills start` first, which will serve it this page.
 
@@ -116,6 +122,7 @@ Everything else reads the local store.
 | 4        | `liftoff configure validate`                           | nothing                                           |
 | 5        | `liftoff discover`                                     | the store (the whole estate, read-only)           |
 | 6        | `liftoff batch stage <units>`                          | the store (staging choices)                       |
+| optional | `liftoff transform workflow-tool`                      | the store (staged entities only)                  |
 | 7        | `liftoff audit [--repair]`                             | the store, under `--repair` only                  |
 | 8        | `liftoff generate`                                     | the OpenTofu module (staged ∪ migrated)           |
 | 9        | `liftoff publish`                                      | Spacelift (managed repo + admin stack)            |
@@ -123,7 +130,7 @@ Everything else reads the local store.
 | 11       | `liftoff finalize staged`                              | the store (batch → migrated)                      |
 | ↻        | back to `liftoff discover` for the next batch          | —                                                 |
 
-**Every step is idempotent, so re-running is always safe.** A killed `discover` resumes where it stopped and preserves staging choices, a re-run with nothing new says so and changes nothing, `repair` converges (a second `--repair` writes nothing), and `generate` re-renders the same bytes from the same store, keeping every already-migrated file untouched.
+**Every step is idempotent, so re-running is always safe.** A killed `discover` resumes where it stopped and preserves staging choices, a re-run with nothing new says so and changes nothing, `repair` converges (a second `--repair` writes nothing), and `generate` re-renders the same bytes from the same store while keeping every already-migrated file untouched.
 
 When in doubt, run the command again.
 
@@ -153,7 +160,7 @@ For people only: agents are refused, and the URL it prints is a session credenti
 
 ### `liftoff skills [topic]`
 
-Print the guidance page for a topic (`start`, `models`, `setup`, `discover`, `batch`, `audit`, `model`, `generate`, `publish`, `publish-byo-git`, `mutate`, `finalize`, `restore`, `ui`), plus anything source-specific.
+Print the guidance page for a topic (`start`, `models`, `setup`, `discover`, `batch`, `audit`, `model`, `generate`, `publish`, `publish-byo-git`, `mutate`, `finalize`, `transform`, `restore`, `ui`), plus anything source-specific.
 
 This is built for agents; the content is these pages, starting with this one.
 

@@ -23,6 +23,9 @@ discover → audit → generate → publish → finalize
 4. **Publish** hands that module to a Spacelift admin stack, which applies it to create everything; **finalize** moves in what can't travel as code — secret values, tfvars, state, module versions.
 
 Everything downstream of discover re-runs safely and instantly: re-discover, re-audit, regenerate, diff.
+While a batch is staged, **transform** can reshape the deployment toward
+Spacelift-native choices, beginning with converting stacks and modules to
+OpenTofu through the same generate-and-publish path.
 The full walkthrough — every command, real outputs, and the decisions between them — starts at [docs/README.md](docs/README.md).
 
 ## Install

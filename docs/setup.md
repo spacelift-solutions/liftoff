@@ -115,7 +115,7 @@ Later commands walk up from `$PWD` to find that folder, so you can run them from
 `--config-dir` or `LIFTOFF_CONFIG_DIR` still override the walk when you need a workspace somewhere else.
 
 One warning, and it grows over the migration: `./.liftoff/` becomes the most sensitive thing on this machine.
-`config.yaml` holds your source API token after step 3 (unless you kept it in an env reference), and the store — `liftoff.db`, a **plain, unencrypted SQLite file** — holds everything discover pulls, variable values included, and later the captured secret values and full Terraform **state blobs** the finalize steps push.
+`config.yaml` may hold source credentials after step 3 (unless you keep them in env references), and the store — `liftoff.db`, a **plain, unencrypted SQLite file** — holds everything discover pulls, variable values included, and later any sensitive values and stack state that capabilities capture.
 Treat the directory accordingly.
 If you are running inside a git repository, ignore the workspace now:
 
@@ -136,6 +136,16 @@ liftoff sources
 
 Lists every source this binary can migrate from, with the settings each one takes.
 Read-only; run it as often as you like.
+
+<!-- liftoff:skill terraform -->
+The capture below shows the Terraform source included in this release.
+
+Use the source id `terraform` for both Terraform Cloud and self-hosted Terraform Enterprise.
+A Terraform Enterprise migration also needs `source.api_endpoint` set to that installation's API endpoint.
+
+The source's `secrets` capability covers workspace variables.
+`context-secrets` covers variable-set variables and creates a temporary workspace to read them.
+Both restore every source-side change before finishing.
 
 ```text
 Sources (1)
@@ -223,48 +233,113 @@ Sources (1)
 Next
   $ liftoff configure --source <id> --set source.<key>=value
 ```
+<!-- liftoff:skill /terraform -->
 
 What to take from this screen:
 
 - **The id in the title is what you pass to `configure --source`.**
-  Here that is `terraform`, which covers both Terraform Cloud and self-hosted Terraform Enterprise.
 - **Config Keys is your settings checklist.**
-  Only the checked `Required` keys must be set (`api_token` here).
+  Only the checked `Required` keys must be set.
   Everything else has a `Default` you can live with, or a `When Unset` telling you what not setting it means.
-  On Terraform Enterprise you will also need `api_endpoint` pointed at your install.
 - **Repair Keys are not for discover.**
   They feed `liftoff audit --repair` in step 7 and only come into play when an audit has findings to fix.
   You can set them now with everything else, and change them later by re-running configure.
 - **Mutations preview a later, opt-in step.**
   Discover never changes the source; the one step that does — `liftoff mutate` — is opt-in and per run, so you pass `--allow-mutation <name>` on every `mutate` that should use it, which is why mutations are not config keys.
-  The two secret mutations are the ones worth planning for: without them, sensitive values come over empty and you re-enter them in Spacelift afterwards.
-  `secrets` covers values set on a workspace.
-  `context-secrets` covers values set on a variable set, and is separate because it makes a larger change — it creates a throwaway workspace to read them through, then deletes it.
-  Both revert the source when done.
   Nothing to do now — the [mutate](mutate.md) step shows the flags.
 
-The decision at this step is which source you are migrating from and, if it is self-hosted, what its API endpoint is.
+The decision at this step is which source you are migrating from and which of its optional settings your environment needs.
 Note the id and move on.
 
 ## Step 3 — configure the source
 
 ```bash
-liftoff configure --source terraform --set source.api_token='${TFC_TOKEN}'
+liftoff configure --source <id> --set source.<required-key>='${SOURCE_VALUE}'
 ```
 
 Records the source and its settings in `config.yaml`.
-Values can reference environment variables: single-quote the reference so your shell doesn't expand it, and `config.yaml` stores the literal `${TFC_TOKEN}` — the value is resolved when a command runs, so the token itself never has to be written to disk.
+Use the id and required keys reported by `liftoff sources`.
+Values can reference environment variables: single-quote the reference so your shell doesn't expand it, and `config.yaml` stores the literal `${SOURCE_VALUE}` — the value is resolved when a command runs, so the secret itself never has to be written to disk.
 A reference that doesn't resolve is an error, not an empty string.
-Pasting the raw token works too; it just lives in `config.yaml` (and your shell history) instead.
+Pasting a raw secret works too; it just lives in `config.yaml` (and your shell history) instead.
 
-`--set` repeats, and configure is incremental — later runs merge into what's already saved:
+<!-- liftoff:skill terraform -->
+Configure the Terraform source with an admin user token:
 
 ```bash
-liftoff configure --set source.api_endpoint=https://tfe.example.com --set source.workspace_concurrency=4
+liftoff configure --source terraform --set source.api_token='${TFC_TOKEN}'
 ```
 
+Set `source.api_endpoint` as well for Terraform Enterprise.
+`source.workspace_concurrency` controls how many workspaces are processed at once, while `source.requests_per_second` caps API requests.
+<!-- liftoff:skill /terraform -->
+
+`--set` repeats, and configure is incremental — later runs merge into what's already saved.
+A later `--set` of a key that is already in `config.yaml` replaces that value (it does not keep the first write):
+
+```bash
+liftoff configure --set source.<key>=value --set source.<another-key>=value
+```
+
+Settings for a deployment transform use one more level: the transform subcommand
+owns the keys below it. For example:
+
+```bash
+liftoff configure --set transform.workflow-tool.target=OPEN_TOFU --set transform.workflow-tool.version=1.8.7
+```
+
+These settings do nothing during discovery. They are consumed only when you run
+[`liftoff transform workflow-tool`](transform.md) for the current staged batch.
+
+### When you need to write config.yaml by hand
+
+`liftoff configure --set` is the normal path: it preserves the rest of the file, checks section names, and keeps secret values out of the report.
+Writing `.liftoff/config.yaml` directly is the escape hatch for pre-seeding a workspace from automation, reviewing the whole configuration, or repairing malformed YAML.
+
+The file has four core top-level entries:
+
+- `exporter` is the source id from `liftoff sources`.
+- `source` holds settings declared by that source.
+- `spacelift` holds the destination account and API key.
+- `vcs` holds repository credentials used by capabilities that read from git.
+
+An optional `transform` entry holds settings for commands such as `liftoff transform workflow-tool`.
+
+<!-- liftoff:skill terraform -->
+Here is a complete Terraform source example:
+
+```yaml
+exporter: terraform
+source:
+  api_endpoint: https://app.terraform.io
+  api_token: ${TFC_TOKEN}
+
+spacelift:
+  endpoint: https://example.app.spacelift.io
+  api_key_id: ${SPACELIFT_KEY_ID}
+  api_key_secret: ${SPACELIFT_KEY_SECRET}
+  repo_name: liftoff
+  admin_stack_name: liftoff-admin
+  space: root
+
+vcs:
+  token: ${VCS_TOKEN}
+
+transform:
+  workflow-tool:
+    target: OPEN_TOFU
+    version: 1.8.7
+```
+<!-- liftoff:skill /terraform -->
+
+Environment references stay exactly as written on disk.
+The command that uses a value resolves it from the environment, so export each referenced variable before validating or running the migration.
+After any hand edit, run `liftoff configure validate`.
+It reports missing and unknown keys, validates transform settings, and authenticates against both configured systems when the required credentials are available.
+
 If a required setting is still missing, configure saves your progress and errors with exactly what's left — the specimen in [when something goes wrong](README.md#when-something-goes-wrong) is this very case.
-With the token set:
+<!-- liftoff:skill terraform -->
+With the Terraform source's token set, the current capture reads:
 
 ```text
 Source  terraform
@@ -275,6 +350,7 @@ Set Keys (1)
 Next
   $ liftoff configure validate
 ```
+<!-- liftoff:skill /terraform -->
 
 Values are never echoed back, only key names.
 
@@ -287,6 +363,9 @@ liftoff configure validate
 The verdict on your configuration: what every key resolves to right now and what the run will mean, and — once the config is complete — it authenticates both key pairs and names who each resolved to.
 Read-only (it never writes), so run it as often as you like.
 This is the moment to catch a Spacelift endpoint pointed at the wrong account.
+
+<!-- liftoff:skill terraform -->
+The capture below validates the Terraform source shown in step 2.
 
 ```text
 Source  terraform
@@ -348,6 +427,7 @@ Mutations (4)
 Next
   $ liftoff discover
 ```
+<!-- liftoff:skill /terraform -->
 
 Where `liftoff sources` showed templates, this shows results: every `Effect` is rendered with the value the run will actually use.
 Two more sections appear only when something needs attention: `Missing Required` (required keys with no value) and `Unknown Keys` (settings in `config.yaml` the source doesn't recognize — usually a typo'd `--set`).
@@ -355,24 +435,29 @@ Two more sections appear only when something needs attention: `Missing Required`
 Read the `Effect` column top to bottom and check it against your intent.
 Worth deciding now:
 
-- **Rate and concurrency** (`requests_per_second`, `workspace_concurrency`) — the defaults are safe for Terraform Cloud; a self-hosted TFE may want them lowered.
-- **The repair keys** (`module_workflow_tool`, `default_branch`, `custom_runner_image`, `worker_pool_id`) — what `liftoff audit --repair` writes in step 6. They change nothing until an audit has findings to fix, and you can re-run configure to adjust them whenever.
-  `custom_runner_image` matters if any workspace runs a Terraform version Spacelift's runner doesn't include: those stacks migrate onto the CUSTOM workflow tool and run the tool from that image, tagged with each stack's version ([generate](generate.md)).
-  **The image has to carry the tool.**
-  Spacelift downloads nothing for a CUSTOM stack — it runs the commands in the mounted `workflow.yml`, so a missing binary surfaces as `sh: terraform: not found` and the run stops in `INITIALIZING`.
-  Spacelift's own `runner-terraform` image does not satisfy this; build on it and install the versions you need.
-  **Give it no tag.**
-  An untagged image is what lets the repair tag each stack with the version its workspace ran, so every stack keeps its own.
-  If you tag it yourself — `…/runner-terraform:latest`, say — that exact image is written to every CUSTOM stack, so whatever tool version it carries is the one they all run.
-  `liftoff audit` prints the reference it would write per stack, so you can check before repairing.
-  `worker_pool_id` matters when your Spacelift account has private worker pools: generated stacks omit the attribute (and land on the public pool — an audit error instead when the account has none) unless you set this to a pool id discover recorded, then `audit --repair` writes it.
-- **The mutations** — opt-ins for the later `mutate` step, `secrets` here being one example.
+- **Rate and concurrency** — use the source's reported keys to keep discovery within its API limits.
+- **Repair keys** — they change nothing until `liftoff audit --repair` has a matching finding, and you can re-run configure to adjust them whenever.
+- **The mutations** — opt-ins for the later `mutate` step.
   A mutation is never remembered: you pass `--allow-mutation <name>` on every `mutate` that should use it, which is why they aren't config keys.
-  Decide whether sensitive variable values should be captured (the [mutate](mutate.md) step shows the flag) or re-entered in Spacelift after the migration.
+  Decide which capabilities the configured source should run; the [mutate](mutate.md) step shows the flag.
 
-### Building the runner image for CUSTOM stacks
+<!-- liftoff:skill terraform -->
+The default request rate and workspace concurrency are safe for Terraform Cloud; lower them when a Terraform Enterprise installation needs a gentler load.
 
-If any workspace runs a Terraform newer than Spacelift bundles, its stack migrates onto the CUSTOM workflow tool and runs the binary **your** image carries.
+The repair keys are `module_workflow_tool`, `default_branch`, `custom_runner_image`, `worker_pool_id`, and `repository_map`.
+They change nothing during discovery.
+`liftoff audit --repair` reads them only when the matching finding is present.
+
+`custom_runner_image` applies to workspaces whose Terraform version requires the CUSTOM workflow tool.
+Give it an untagged image name; repair adds each stack's Terraform version as the tag.
+The image must contain that Terraform binary.
+A private image requires a private worker pool.
+<!-- liftoff:skill /terraform -->
+
+<!-- liftoff:skill terraform -->
+### Terraform Cloud / Enterprise: building the runner image for CUSTOM stacks
+
+If a Terraform workspace runs a version newer than Spacelift bundles, its stack migrates onto the CUSTOM workflow tool and runs the binary **your** image carries.
 Spacelift downloads nothing for it — you hold the licence for those versions, so you build the image.
 
 You need one tag per version in the batch.
@@ -429,5 +514,6 @@ liftoff audit --repair
 Each CUSTOM stack gets `$REGISTRY/liftoff-runner:<its own version>`.
 Build for linux/amd64 — that is what Spacelift workers run.
 A missing or non-executable binary shows up as `sh: terraform: not found`, with the run stopping in `INITIALIZING`.
+<!-- liftoff:skill /terraform -->
 
-When the effects read the way you intend and the token authenticated, you are ready for [discover](discover.md).
+When the effects read the way you intend and the source credentials authenticated, you are ready for [discover](discover.md).

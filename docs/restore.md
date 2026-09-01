@@ -35,11 +35,13 @@ This is source-mutating — it dispatches each pending restore point back to its
 A revert that fails is reported and kept for a retry; the rest still proceed.
 When some fail, `restore` names every point it reverted and every one still pending, with the reason each failed, and exits non-zero: the source is not back to its original state until nothing is pending.
 
-For the Terraform source's `secrets` capability, a revert puts each touched workspace back to its original execution mode and agent pool, and deletes the temporary agent pool the extraction created.
+<!-- liftoff:skill terraform -->
+Restoring a `secrets` capture returns each workspace to its original execution mode and agent pool, then deletes the temporary agent pool.
 
-For `context-secrets`, a revert detaches the temporary workspace from any variable set still holding it, deletes that workspace, and deletes the temporary agent pool.
-Because reverts run most-recent-first, an attachment is always undone before the workspace it points at.
+Restoring a `context-secrets` capture removes any remaining variable-set attachments, deletes the temporary workspaces, and deletes the temporary agent pool.
+Liftoff restores the newest change first, so it removes attachments before deleting the workspaces they reference.
 
-Those are the only mutations secret extraction makes.
+Secret capture makes no other changes to Terraform Cloud or Terraform Enterprise.
+<!-- liftoff:skill /terraform -->
 
 Once nothing is pending, re-run `liftoff mutate` and continue where you were.

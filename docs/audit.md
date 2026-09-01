@@ -9,7 +9,8 @@ liftoff audit
 ```
 
 Runs every rule over the staged set — what you're about to migrate, not the whole estate — and reports what needs attention before generation.
-Read-only and recomputed on every run — findings are never persisted, so re-running is always safe and always current.
+Findings are recomputed on every run and never persisted, so the report is always current.
+A plain audit is read-only; `--repair` changes the local model, and finding acceptance flags change the local acceptance ledger.
 (The example below stages `--all`; a smaller batch shows fewer findings.)
 
 ```text
@@ -61,10 +62,12 @@ Findings (6)
 
   stack-missing-vcs-repository (error) (3)
     Description  A stack without a VCS repository cannot be created in Spacelift
-    Repairable   no
-    Remediation  change one with `liftoff model set stack:<id> vcs.repository=…` (vcs.namespace, vcs.branch,
-                 vcs.provider the same way); attach the stack to a repository at the source and re-discover, or
-                 unstage this stack to leave it out of the batch
+    Repairable   yes
+    Repair keys  repository_map
+    Remediation  set `liftoff configure --set source.repository_map=…` and run `liftoff audit --repair` to fill every
+                 affected stack, or change one with `liftoff model set stack:<id> vcs.repository=…` (vcs.namespace,
+                 vcs.branch, vcs.provider the same way); attach the stack to a repository at the source and
+                 re-discover, or unstage this stack to leave it out of the batch
 
     Entities (3)
       this-is-a-test-workspace (id: ws-axzQMYTKvuxA9VDQ)
@@ -112,6 +115,7 @@ Counts
   Warning  23
 
 Next
+  $ liftoff configure --set source.repository_map=…
   $ liftoff configure --set source.default_branch=…
   $ liftoff configure --set source.module_workflow_tool=…
   $ liftoff audit
@@ -137,20 +141,47 @@ Errors block a clean generation; warnings are things to handle after the migrati
   Point the key at an image you have tagged yourself, or pin a plain version on the source and re-discover.
   `stacks-default-public-worker-pool` is a warning on the same pattern: when the account has private worker pools, stacks without a pool set will generate onto the public one — set `worker_pool_id` to a recorded private pool id and `--repair` writes it ([setup](setup.md), [generate](generate.md)).
   On an account with no public pool it is an error instead, since an unbound stack would have nothing to run on.
+  `stack-missing-vcs-repository` repairs via `repository_map`. `config.yaml` stores a path (or a one-line `k=v` list) — not a nested map:
+
+  ```yaml
+  source:
+    repository_map: "@repos.yaml"
+  ```
+
+  ```yaml
+  # repos.yaml
+  "space:Core Infra": acme/core-infra
+  "dev-*":
+    namespace: acme
+    repository: dev-repo
+    branch: main
+    provider: GITHUB
+  ws-special: acme/special-repo
+  ```
+
+  Then `liftoff configure --set source.repository_map=@repos.yaml` and `--repair` writes them.
+  A string value is `namespace/repository`; the object form also fills branch and provider.
+  Quote keys that contain a colon or a glob.
+  JSON (`@repos.json`) is the same shape.
 - **Per-entity fixes** use [`liftoff model set`](model.md), which names the entities itself.
-  Reach for it when a shared config key would be wrong — `stack-missing-vcs-repository` is the worked example: each VCS-less stack needs its own repository, so there is no `default_repository` key and the finding is not `repairable` at all.
-  It is also the only way to change a value that is **already there**, which `--repair` never touches: a stale namespace after an account rename is corrected here, not by a repair key.
+  Reach for it when changing a value that is **already there**, which `--repair` never touches: a stale namespace after an account rename is corrected here, not by a repair key.
   Name several entities in one command when the same correction applies to all of them, and add `vcs.namespace` / `vcs.branch` / `vcs.provider` as companions when you know them.
-- **Unrepairable errors** are fix-at-the-source problems: accept them explicitly at generate time with `--ignore-finding` (renders the stacks annotated for hand-editing), or `unstage` the offending units to leave them out of the batch ([generate](generate.md), [batch](batch.md)).
-  `stack-version-unsupported-syntax` is one of these: the source reported a version Spacelift turns down, so the stack would fail when the admin stack applies.
-  Exact versions and constraints both carry over — `1.5.7`, `1.5`, `>= 1.0.0`, `~> 1.5.0` are all fine — but `latest`, a version with a fourth segment, and anything that is neither are rejected.
-  Pin one it accepts on the source and re-discover.
-  Accepting the finding renders the value as it stands, annotated, for you to correct by hand before applying.
+  Invalid VCS providers, missing raw-git URLs, invalid module providers, unsupported stack versions, unreachable VCS namespaces, and unpullable runner images all declare the fields that correct them, so audit names the exact `model set` command.
+  For `stack-version-unsupported-syntax`, exact versions and constraints both carry over — `1.5.7`, `1.5`, `>= 1.0.0`, `~> 1.5.0` are all fine — but `latest`, a version with a fourth segment, and anything that is neither are rejected.
+  Set `terraform.version` locally, or pin one Spacelift accepts at the source and re-discover.
   Stacks on the CUSTOM workflow tool are exempt: Spacelift has no version selector for them, so no version is rendered and there is nothing to reject ([generate](generate.md)).
+- **Manual repair exceptions** stay errors when the generated code cannot safely run but Liftoff cannot choose or perform the fix.
+  Every such finding says what action to take instead.
+  These exceptions cover source or account changes (`vcs-integration-unhealthy`, `no-worker-available`, and stale wrapped variable captures), batch decisions (duplicate ids and unstaged dependencies), and attachment placement.
+  Fix the named problem, accept it with `--ignore-finding` when you intend to hand-edit the generated code, or unstage the affected unit ([generate](generate.md), [batch](batch.md)).
 - **`vcs-integration-unbound`** is an error, and it is about your Spacelift account rather than the source.
   A generated stack names the integration it binds to, so that a repository reaches the connection you intend rather than whichever one the account happens to treat as default.
-  This fires when nothing was bound: either the account has no integration that can serve the repository — create one and re-run discover — or it has several and none of them is the obvious answer, in which case name the one you want with the source's VCS integration key and re-run discover.
-  `liftoff configure validate` lists that key.
+  This fires when nothing was bound: either the account has no integration that can serve the repository — create one and re-run discover — or it has several and none of them is the obvious answer.
+  In the second case, set the source's VCS integration key to an integration id already recorded by discovery, then run `liftoff audit --repair`.
+  The repair fills every compatible unbound stack and module from that integration's recorded name and provider, plus its id when the integration is not the built-in GitHub App.
+  An id that discovery did not record writes nothing, as does one whose provider cannot serve the repository.
+  The same setting also applies during the next discover.
+  `liftoff configure validate` lists the key.
 - **`no-worker-available`** is an error, and also about the account.
   Applying the generated code is itself a Spacelift run, so a migration cannot finish without a worker.
   Having worker pools is not enough — the check looks for a private pool with a worker attached that is not drained, or the public pool (assumed runnable without inspecting workers).
@@ -164,7 +195,7 @@ Errors block a clean generation; warnings are things to handle after the migrati
   A stack with no runner image at all belongs to `custom-workflow-missing-runner-image` instead, so the two never report the same stack.
 - **`raw-git-missing-url`** is an error on stacks and modules tracking a raw git repository with no URL recorded.
   Raw git names its repository outright instead of going through an integration, so without the URL there is nothing to clone and the generated block renders `REPLACE_ME`.
-  Accepting the finding at generate time is what lets that placeholder through, for you to fill in by hand.
+  Set `vcs.url` with `liftoff model set`, correct it at the source and re-discover, or accept the finding to let the placeholder through for a hand edit.
 - **`module-invalid-provider`** is an error, one per staged module whose provider Spacelift will not accept.
   A module is addressed by its registry address (`terraform-<provider>-<name>`), so the provider is part of its identity rather than a label on it, and only letters, digits and underscores are allowed there.
   A provider carrying anything else (a dash or a dot, say) is rejected when the admin stack applies, long after generate, which is why it is caught here instead.
@@ -178,6 +209,24 @@ Errors block a clean generation; warnings are things to handle after the migrati
   discover already prefers an integration that serves your namespace when the account has more than one candidate, so seeing this means none of them did.
   One limitation worth knowing: a repository on Spacelift's built-in GitHub App cannot be checked this way, because that integration does not report which accounts it is installed on.
   Nothing is claimed when an integration reports nothing — an unchecked namespace is never reported as a reachable one.
+
+  <!-- liftoff:skill terraform -->
+  For Azure DevOps, `vcs.namespace` is the **project**, not the organization.
+  Terraform Cloud records a repository as `<organization>/<project>/_git/<repository>`, so `acme/Platform/_git/infra` becomes `vcs.namespace=Platform` and `vcs.repository=infra`.
+  The organization comes from the Spacelift Azure DevOps integration; module tag resolution also uses the organization in [`vcs.host`](mutate.md#terraform-cloud--enterprise-resolving-module-versions-commit-shas).
+
+  A local correction for that example is:
+
+  ```bash
+  liftoff model set stack:ws-abc \
+    vcs.namespace=Platform \
+    vcs.repository=infra \
+    vcs.provider=AZURE_DEVOPS
+  ```
+
+  Do not set `vcs.namespace=acme`.
+  When the finding lists what the integration serves, those values are Azure DevOps project names.
+  <!-- liftoff:skill /terraform -->
 - **`vcs-integration-unhealthy`** is an error, one per integration rather than per stack, because everything bound to it is affected and it is a single thing to fix.
   It fires when Spacelift could not reach the integration at all when discover last looked — the app was deleted, its credentials no longer work, or a VCS agent pool it routes through is unreachable.
   The finding names the status Spacelift reported, which is the clue to which repair is needed.
@@ -202,6 +251,9 @@ Errors block a clean generation; warnings are things to handle after the migrati
   A TFC run task calls an external service around a run; Spacelift has no 1:1 equivalent, so you reconnect the callout as a separately provisioned integration (a Flow or webhook pointing at the same service) and wire it to the stacks that used the run task.
   The finding names each run task and how many workspaces used it.
   Like the team and agent-pool findings it's account-global, has no repair, and re-surfaces every run; `--acknowledge-finding run-task-not-migrated` once you've reconnected them.
+- **`module-version-unmigratable`** is informational, one per published module version whose commit SHA could not be recovered.
+  The module still migrates, but `liftoff finalize modules` skips that version.
+  Create the missing version in Spacelift by hand, pointing it at the correct commit, and acknowledge the finding once it is handled.
 - **`registry-provider-versions-not-migrated`** is a warning, one per staged provider.
   Unlike the findings above, a private-registry provider _does_ generate — as a `spacelift_terraform_provider` definition.
   What doesn't carry over are its published versions: those are built, signed binaries the source's API never returns, so the kit migrates the definition and leaves the versions to you.
@@ -212,6 +264,7 @@ When the results read right, apply:
 
 ```bash
 liftoff configure --set source.module_workflow_tool=OPEN_TOFU
+liftoff configure --set source.repository_map=@repos.yaml
 liftoff audit --repair
 liftoff model set stack:ws-oxRaEDV2f5uMHy5f \
   vcs.repository=my-repo \
@@ -265,7 +318,7 @@ Next
   $ liftoff model set stack:ws-jo93LkzmNb6bK6Ga vcs.repository=…
 ```
 
-The third VCS-less stack was fixed with `liftoff model set` before this run; the other two still need one, a fix at the source and re-discover, `unstage`, or `--ignore-finding`.
+The third VCS-less stack was fixed with `liftoff model set` before this run; the other two still need one, a fix at the source and re-discover, `unstage`, or `audit --ignore-finding`.
 Everything else — the repaired branches and module tool, the warnings — is ready to render.
 
 Worth knowing:
@@ -277,13 +330,20 @@ Worth knowing:
   `audit --repair` is the estate-wide fix: it applies a config key everywhere it fits and only ever fills what is empty.
   `model set` names the entities and is the only thing that can change a value that is already populated.
   The `Next` commands after an audit name whichever of the two each finding needs.
-- **`--acknowledge-finding` quiets a reviewed warning or info finding in the listing** (`rule` or `rule:entity-id`, repeatable).
-  The acknowledgement is persisted in the store, so later audit and generate runs omit it from the active list (it still appears under `acknowledged`).
-  Generated code still carries the `# WARNING:` / `# INFO:` comment.
-  Errors cannot be acknowledged — they still need `--ignore-finding` at generate time.
-  Same flag works on `liftoff generate`.
+- **Finding acceptance belongs to audit and persists in the store.**
+  Use `--ignore-finding rule@entity-kind:entity-id` for an error, or `--acknowledge-finding rule@entity-kind:entity-id` for a reviewed warning or info finding; repeat either flag to make several exact decisions in one run.
+  The entity kind distinguishes findings when two entity types share a source id.
+  A bare rule accepts every current finding of the severity that flag handles.
+  Ignored errors leave the active list and appear under `ignored`; acknowledged warnings and info appear under `acknowledged`.
+  Both still render as `# ERROR:`, `# WARNING:`, or `# INFO:` comments, so acceptance never hides the issue from the generated code.
+  If a finding changes to a severity that its saved decision does not accept, it becomes active again.
+  The browser UI asks for confirmation before ignoring any error: ignoring unblocks generation but does not fix the code, so publish may fail until every `# ERROR` annotation is corrected.
+  Undo a saved decision with `--revoke-finding rule@entity-kind:entity-id`; the finding returns to the active list immediately.
+  Acceptance, revocation, and selector validation happen as one transaction, so a bad selector leaves the ledger unchanged.
+  Run repair separately: acceptance flags cannot be combined with `--repair`, because decisions must apply to the findings after repair recomputes them.
 - **Remaining errors block generation.**
-  `liftoff generate` re-runs these same rules over the staged set and refuses while error findings remain — each one must be fixed, accepted with `--ignore-finding` (rendered annotated), or removed by unstaging it.
+  `liftoff generate` re-runs these same rules over the staged set and reads the saved decisions; it refuses while active error findings remain.
+  Each one must be fixed, accepted here with `--ignore-finding` (rendered annotated), or removed by unstaging it.
   Warnings never block; they always annotate the generated code (acknowledgement only quiets the listing).
 
-When what remains is what you've accepted, the estate is ready to render — name each accepted error on the generate command: [generate](generate.md).
+When no active error remains, the estate is ready to render: [generate](generate.md).
