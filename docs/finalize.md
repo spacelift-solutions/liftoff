@@ -175,8 +175,7 @@ The unrecoverable ones are also surfaced by [`liftoff audit`](audit.md) as `modu
 After state lands, the migration is complete: Spacelift runs plans against the same state the source last held, and the source can be retired on your schedule.
 Migration is lift-and-shift by design: everything lands where it lived at the source.
 The phase that follows is adoption: organizing spaces around how your teams actually work, tightening policies, and adopting Spacelift-native workflows.
-The `liftoff space` command group (create, move, reshape; a move relocates a stack's file into the target space's directory and emits a `moved` block, so the admin stack re-parents it in place) is the tooling for that phase, and its shape is still being worked out with early users.
-Expect this page to grow.
+[`liftoff transform space`](transform.md#place-staged-units-into-an-existing-destination-space) can plan spaces and remap migrated units. Generate emits `moved` blocks so the admin stack re-parents those units in place.
 
 ## Dispose of the workspace when you're done
 

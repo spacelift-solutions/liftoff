@@ -286,10 +286,12 @@ owns the keys below it. For example:
 
 ```bash
 liftoff configure --set transform.workflow-tool.target=OPEN_TOFU --set transform.workflow-tool.version=1.8.7
+liftoff configure --set transform.stack-labels.add=team:payments,env:prod
 ```
 
 These settings do nothing during discovery. They are consumed only when you run
-[`liftoff transform workflow-tool`](transform.md) for the current staged batch.
+the matching [`liftoff transform`](transform.md) command for the current staged
+batch. `transform space mv` takes `--to` on the command instead of a config key.
 
 ### When you need to write config.yaml by hand
 
@@ -303,7 +305,7 @@ The file has four core top-level entries:
 - `spacelift` holds the destination account and API key.
 - `vcs` holds repository credentials used by capabilities that read from git.
 
-An optional `transform` entry holds settings for commands such as `liftoff transform workflow-tool`.
+An optional `transform` entry holds settings for commands such as `liftoff transform workflow-tool` and `liftoff transform stack-labels`.
 
 <!-- liftoff:skill terraform -->
 Here is a complete Terraform source example:
@@ -329,6 +331,8 @@ transform:
   workflow-tool:
     target: OPEN_TOFU
     version: 1.8.7
+  stack-labels:
+    add: team:payments,env:prod
 ```
 <!-- liftoff:skill /terraform -->
 

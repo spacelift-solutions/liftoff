@@ -29,7 +29,7 @@ Reach for `model set` when specific entities are wrong, such as a repository tha
 Every kind, and the id vocabulary shared with `batch`:
 
 ```text
-Kinds (12)
+Kinds (13)
   ┌────────────────────┬───────────┬────────────┐
   │ Kind               │ Stageable │ Selectable │
   ├────────────────────┼───────────┼────────────┤
@@ -45,6 +45,7 @@ Kinds (12)
   │ spacelift_vcs      │ –         │ –          │
   │ spacelift_pool     │ –         │ –          │
   │ spacelift_worker   │ –         │ –          │
+  │ spacelift_space    │ –         │ –          │
   └────────────────────┴───────────┴────────────┘
 ```
 
@@ -53,8 +54,9 @@ Everything else still migrates; a variable is migrated with the stack it belongs
 That is the line between `liftoff model list` and [`liftoff batch list`](batch.md): `batch list` deliberately leaves out variables and mounted files as too numerous, and `model list` reaches them.
 
 **Selectable** kinds can be named as `<kind>:<id>`.
-The last three describe your destination Spacelift account rather than the estate being migrated: they carry no source id, so nothing addresses one, and they are **read-only**.
+The last four describe your destination Spacelift account rather than the estate being migrated: they carry no source id, so nothing addresses one as a selector, and they are **read-only**.
 They are facts discover recorded about your account, not part of the migration, so `set` and `unset` cannot name them at all.
+List destination spaces with `liftoff model list --kind spacelift_space` before mapping a batch onto one.
 
 ## Reading
 
@@ -291,15 +293,15 @@ liftoff audit --repair --rule custom-workflow-missing-runner-image
 Some fields are not yours to change, and say why:
 
 ```text
-✗ Field Not Settable  space_id cannot be written
-  entity: space_id
+✗ Field Not Settable  source_space_id cannot be written
+  entity: source_space_id
 
 Remediation
-  an entity's space decides which space module renders it, so changing it here would destroy and recreate the resource
+  an entity's space decides which space module renders it; remap with `liftoff transform space mv`
 ```
 
 The rule behind it: you can change what an entity **is**, never what **identifies** it or what it **hangs off**.
-That covers `provenance.source_id` and `provenance.source_json` (identity and the raw capture), `provenance.migration_status` (staging owns it, so use [`liftoff batch`](batch.md)), `space_id` and `parent_space_id` (placement), and a leaf's owner links.
+That covers `provenance.source_id` and `provenance.source_json` (identity and the raw capture), `provenance.migration_status` (staging owns it, so use [`liftoff batch`](batch.md)), `source_space_id`, `destination_space_id`, and `parent_space_id` (placement — use [`liftoff transform space mv`](transform.md) only, including after apply by restaging first), and a leaf's owner links.
 Those are moves rather than edits: they rewrite the rows pointing at the entity and re-render it into a different file.
 
 Values are checked against the model, so a field with a fixed set of values needs no separate table to look up:

@@ -46,6 +46,7 @@ Counts
   Stacks             13
 
 Spacelift Counts
+  Spaces            8
   VCS Integrations  4
   Worker Pools      1
 
@@ -54,7 +55,7 @@ Next
 ```
 
 `Counts` is what actually landed in the store, read back after the run.
-`Spacelift Counts` is the other end of the pipe: what your Spacelift account has, which discover reads before it touches the source.
+`Spacelift Counts` is the other end of the pipe: what your Spacelift account has, which discover reads before it touches the source — VCS integrations, worker pools, and destination spaces.
 `Sensitive Values` reports which sensitive values the source returned, which are empty, and which a later capability captured.
 The notes say what is missing and whether the configured source offers a way to capture it later (stage what you want, then [`liftoff mutate`](mutate.md)).
 
@@ -76,7 +77,7 @@ From here you pick a batch with [`liftoff batch`](batch.md); the heavy, source-t
 Two behaviors worth knowing:
 
 - **Discover reads your Spacelift account first, before it touches the source.**
-  It records the VCS integrations and worker pools the account has, so a bad Spacelift key pair fails here rather than after a long walk through the estate, and the stacks it discovers can be bound to the integration that actually serves each repository.
+  It records the VCS integrations, worker pools, and spaces the account has, so a bad Spacelift key pair fails here rather than after a long walk through the estate, and the stacks it discovers can be bound to the integration that actually serves each repository. List destination spaces with `liftoff model list --kind spacelift_space` before mapping a batch onto one.
   Where an account has more than one integration a repository could use, discover picks the one connected to the account or project that repository lives under, preferring a working integration over a broken one — so two GitHub Apps on the same host no longer need you to choose between them by hand.
   This is why the destination credentials are required from this step onward, not only at publish time.
 - **Running discover again is always safe — and it always re-reads your Spacelift account.**
@@ -97,6 +98,16 @@ Two behaviors worth knowing:
   When a source masks a sensitive value, its newlines only surface at capture; [`mutate`](mutate.md#when-a-captured-value-turns-out-to-be-multi-line) does the same translation there, and that one costs an extra `generate` and `publish` lap.
 
 <!-- liftoff:skill terraform -->
+Created a space on the destination account after discover? Re-read the account
+without walking the source again:
+
+```bash
+liftoff discover --destination-only
+```
+
+It refreshes the recorded spaces, worker pools, and VCS integrations and leaves
+everything discovered from the source, and every staging choice, untouched.
+
 Teams, agent pools, policies, and run tasks are recorded as audit-only data.
 Liftoff does not generate them because Terraform Cloud access, execution, policy, and external-callout concepts do not map directly to Spacelift resources.
 `liftoff audit` reports them so you can recreate the intended behavior deliberately.

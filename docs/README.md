@@ -29,9 +29,10 @@ Migrations are **iterative**: discover once, then stage → audit → generate �
 8. **[Finalize](finalize.md)**: Mark the batch migrated, then loop back to discover for the next batch (step 11).
 
 After staging a batch, or after every batch is migrated,
-**[Transform](transform.md)** can reshape the deployment — beginning with
-converting the selected stacks and modules to OpenTofu — before `generate` and
-`publish` apply that choice.
+**[Transform](transform.md)** can reshape the deployment — converting the
+selected stacks and modules to OpenTofu, mapping them onto an existing
+destination space, or adding stack labels — before `generate` and `publish`
+apply that choice.
 
 Migrations are **iterative**: discover once, then batch/stage → audit → generate → publish/apply → mutate → finalize a batch at a time before coming back for the next.
 
@@ -123,6 +124,7 @@ Everything else reads the local store.
 | 5        | `liftoff discover`                                     | the store (the whole estate, read-only)           |
 | 6        | `liftoff batch stage <units>`                          | the store (staging choices)                       |
 | optional | `liftoff transform workflow-tool`                      | the store (staged entities only)                  |
+| optional | `liftoff transform space mv` / `stack-labels`          | the store (staged entities only)                  |
 | 7        | `liftoff audit [--repair]`                             | the store, under `--repair` only                  |
 | 8        | `liftoff generate`                                     | the OpenTofu module (staged ∪ migrated)           |
 | 9        | `liftoff publish`                                      | Spacelift (managed repo + admin stack)            |

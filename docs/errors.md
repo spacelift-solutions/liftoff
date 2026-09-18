@@ -9,7 +9,7 @@ error:
   code: nothing_staged
   message: no staged units to finalize
   remediation: stage a batch first with `liftoff batch stage`
-schema_version: 1
+schema_version: 2
 ```
 
 The `code` is stable, so an agent can branch on it.

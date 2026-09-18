@@ -43,7 +43,7 @@ Each run mints a fresh token; stopping `liftoff ui` invalidates its URL.
 Agents are refused outright; this is the refusal as `liftoff ui --output json` prints it from inside an agent session:
 
 ```json
-{"error":{"code":"ui_needs_a_person","message":"the ui is a person's surface, and this looks like an agent (no-tty env=AI_AGENT+CLAUDECODE+CLAUDE_CODE_ENTRYPOINT parent=claude)","remediation":"agents run liftoff commands directly instead; if a person wants the ui, they can run `liftoff ui --beta` in a terminal of their own"},"schema_version":1}
+{"error":{"code":"ui_needs_a_person","message":"the ui is a person's surface, and this looks like an agent (no-tty env=AI_AGENT+CLAUDECODE+CLAUDE_CODE_ENTRYPOINT parent=claude)","remediation":"agents run liftoff commands directly instead; if a person wants the ui, they can run `liftoff ui --beta` in a terminal of their own"},"schema_version":2}
 ```
 
 There is no proof token or approval that lifts this: an agent has the whole CLI and needs nothing from the UI.
