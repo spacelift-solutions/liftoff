@@ -139,7 +139,11 @@ State
 `--output json` prints those names verbatim if you would rather read them directly, and a misspelling lists every field the entity carries.
 
 A captured sensitive value reads as `(redacted)`; an uncaptured one stays empty, so "hidden" never looks the same as "never captured".
+An empty string returned by the source is also captured; `value_captured` records that state separately from the value.
+A zero-byte mounted file works the same way; `content_captured` distinguishes it from missing content.
 `--allow-printing-secrets` prints it, and asks an agent for approval first, because a printed secret stays in a transcript for good.
+Raw `provenance.source_json` always reads as `(redacted)`.
+Liftoff still reads the original record internally, but `--allow-printing-secrets` never prints it.
 
 Your destination account's own records are listable the same way, which is how you check what an integration can reach before an audit finding tells you it couldn't:
 

@@ -69,8 +69,10 @@ Some of those sensitive values arrive as **mounted files** rather than variables
 `finalize sensitive` pushes the file the same way it pushes a secret — write-only, unreadable once set — but pushing the file is only half of it: **the export hooks have to already be live**, which means the `liftoff generate` and `liftoff publish` lap that `mutate` asks for must have happened first.
 Push the file without the hooks and nothing reads it back, so the run finds no such variable.
 
-Any sensitive value still empty in the store is reported as skipped rather than pushed — set those in Spacelift directly.
-Variable-set (context) secrets need `mutate --allow-mutation context-secrets` to have run; without it they arrive empty and are skipped here.
+Any sensitive value still uncaptured is reported as skipped rather than pushed — set those in Spacelift directly.
+A value captured as an empty string is still pushed; its capture status distinguishes it from a missing value.
+A captured zero-byte mounted file is also pushed; its content status distinguishes it from a file whose content is missing.
+Variable-set (context) secrets need `mutate --allow-mutation context-secrets` to have run; without it they remain uncaptured and are skipped here.
 Every skip is **named**: the report lists each skipped value (kind, id, name) and why it was skipped, so "N skipped" is never a number you have to bisect.
 When captured state is still unpushed, `Next` names `liftoff finalize state` — not `finalize staged` — so the ordering the page warns about is also what the hint says.
 
@@ -185,15 +187,15 @@ keep. [`transform workflow-tool`](transform.md), for example, can convert
 already-migrated units to OpenTofu after you explicitly re-stage them; it then
 sends that batch through `audit`, `generate`, `publish`, and `finalize` once
 more.
-By now it is the most sensitive artifact the migration produced, all of it **unencrypted on your disk**:
+By now it is the most sensitive artifact the migration produced:
 
 - **`config.yaml`** — the source and Spacelift settings, including any API token pasted in rather than kept as an environment reference.
 - **`liftoff.db`** — the SQLite store.
-  It holds every captured **sensitive variable value** (from `mutate --allow-mutation secrets` / `context-secrets`) and every captured **Terraform state blob** (from `mutate --allow-mutation state`) — the same production secrets and state your `finalize` steps just pushed into Spacelift, now sitting in a plain file with no password on it.
+  It holds every captured **sensitive variable value** (from `mutate --allow-mutation secrets` / `context-secrets`) and every captured **Terraform state blob** (from `mutate --allow-mutation state`) — the same production secrets and state your `finalize` steps just pushed into Spacelift, readable by anyone who has both the file and the password you chose at `init`.
 - **`data/generated/`** — the rendered OpenTofu.
   Not secret (secrets are never inlined), but it describes your whole estate.
 
-Nothing about the kit protects this for you: it isn't encrypted, and the `.gitignore` line from [setup](setup.md#step-1--initialize-the-workspace) only keeps it out of git — not off backups, cloud sync, or a machine someone else can reach.
+The store is encrypted, but `config.yaml` and the generated module are not, and the `.gitignore` line from [setup](setup.md#step-1--initialize-the-workspace) only keeps the directory out of git — not off backups, cloud sync, or a machine someone else can reach.
 So while a migration is in flight, keep the directory somewhere only you can read; once it's finished and everything is verified in Spacelift, **delete it**:
 
 ```bash

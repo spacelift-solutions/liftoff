@@ -26,6 +26,7 @@ liftoff mutate --allow-mutation <name>
 
 When discover reports empty sensitive values, use the capture capabilities the configured source declares.
 They act on the **staged batch only**.
+If you configured the source to omit every value at discover, those unlabeled values are empty too — the same capture fills them.
 
 <!-- liftoff:skill terraform -->
 Terraform Cloud and Terraform Enterprise hide sensitive values on workspace variables and variable-set variables.
@@ -120,6 +121,7 @@ Failures (2)
 <!-- liftoff:skill /terraform -->
 
 `Captured` plus `Skipped` always accounts for everything the staged batch put in scope, and `Failures` names the units that need another go.
+An empty string returned by the source still counts as captured. The store records that status separately, so `status`, `audit`, retries, and `finalize sensitive` do not mistake a real empty value for one that was never captured.
 Re-run the same `mutate` command to retry just those; what was already captured is not captured twice.
 A retry needs a fresh approval, because an approval is spent by the run it was given to.
 
