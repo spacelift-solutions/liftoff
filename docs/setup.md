@@ -115,8 +115,23 @@ Later commands walk up from `$PWD` to find that folder, so you can run them from
 `--config-dir` or `LIFTOFF_CONFIG_DIR` still override the walk when you need a workspace somewhere else.
 
 One warning, and it grows over the migration: `./.liftoff/` becomes the most sensitive thing on this machine.
-`config.yaml` may hold source credentials after step 3 (unless you keep them in env references), and the store — `liftoff.db`, a **plain, unencrypted SQLite file** — holds everything discover pulls, variable values included, and later any sensitive values and stack state that capabilities capture.
-Treat the directory accordingly.
+`config.yaml` may hold source credentials after step 3 (unless you keep them in env references), and the store — `liftoff.db` — holds every raw source record, variable values included, and later any sensitive values and stack state that capabilities capture.
+The store is encrypted from the moment `init` creates it.
+On a terminal, `init` asks for a password twice, and the two entries must match.
+The password must be at least 8 characters.
+Every later command reads that same password from `LIFTOFF_STORE_KEY`, or asks once on a terminal:
+
+```bash
+export LIFTOFF_STORE_KEY='<the password you chose>'
+```
+
+Without a terminal, set `LIFTOFF_STORE_KEY` before `liftoff init`, and the store is sealed under it.
+The password is never stored — the store keeps only a salt and a key-check token.
+Encryption covers every raw source record and every value, whether or not the entity it describes is sensitive.
+Encryption keeps a copied store unreadable, but it does not stop someone who can write to the store from changing which values count as sensitive, and a value marked not sensitive is written into the generated code in the clear.
+Treat the store as a file only trusted people can write, not something to pass around.
+A lost password cannot be recovered: the workspace would have to be rebuilt and its captures re-taken.
+`config.yaml` is not encrypted, so treat the directory accordingly.
 If you are running inside a git repository, ignore the workspace now:
 
 ```bash
@@ -150,84 +165,115 @@ Both restore every source-side change before finishing.
 ```text
 Sources (1)
   Terraform Cloud / Enterprise (id: terraform)
-    Config Keys (used in `liftoff discover`) (4)
-      ┌────────────────────┬───────────────────────┬──────────┬─────────────────────┬─────────────────────┬────────────┐
-      │ Label              │ Key                   │ Required │ Default             │ Help                │ When Unset │
-      ├────────────────────┼───────────────────────┼──────────┼─────────────────────┼─────────────────────┼────────────┤
-      │ API endpoint       │ api_endpoint          │ –        │ https://app.terrafo │ Base URL of the     │            │
-      │                    │                       │          │ rm.io               │ Terraform API; set  │            │
-      │                    │                       │          │                     │ it to reach a self- │            │
-      │                    │                       │          │                     │ hosted Terraform    │            │
-      │                    │                       │          │                     │ Enterprise          │            │
-      │ API token          │ api_token             │ ✓        │                     │ Token used to       │            │
-      │                    │                       │          │                     │ authenticate with   │            │
-      │                    │                       │          │                     │ the Terraform API — │            │
-      │                    │                       │          │                     │ must be a user      │            │
-      │                    │                       │          │                     │ token from an admin │            │
-      │                    │                       │          │                     │ user (team and      │            │
-      │                    │                       │          │                     │ organization tokens │            │
-      │                    │                       │          │                     │ do not work)        │            │
-      │ Requests per       │ requests_per_second   │ –        │ 30                  │ Per-source API rate │            │
-      │ second             │                       │          │                     │ limit               │            │
-      │ Workspace          │ workspace_concurrency │ –        │ 8                   │ How many workspaces │            │
-      │ concurrency        │                       │          │                     │ are enriched at     │            │
-      │                    │                       │          │                     │ once                │            │
-      └────────────────────┴───────────────────────┴──────────┴─────────────────────┴─────────────────────┴────────────┘
+    Config Keys (used in `liftoff discover`) (6)
+      ┌──────────────────┬────────────────────────┬──────────┬──────────────────┬──────────────────┬───────────────────┐
+      │ Label            │ Key                    │ Required │ Default          │ Help             │ When Unset        │
+      ├──────────────────┼────────────────────────┼──────────┼──────────────────┼──────────────────┼───────────────────┤
+      │ API endpoint     │ api_endpoint           │ –        │ https://app.terr │ Terraform API    │                   │
+      │                  │                        │          │ aform.io         │ base URL; change │                   │
+      │                  │                        │          │                  │ it for a self-   │                   │
+      │                  │                        │          │                  │ hosted Terraform │                   │
+      │                  │                        │          │                  │ Enterprise       │                   │
+      │                  │                        │          │                  │ instance         │                   │
+      │ API token        │ api_token              │ ✓        │                  │ Admin user token │                   │
+      │                  │                        │          │                  │ for the          │                   │
+      │                  │                        │          │                  │ Terraform API;   │                   │
+      │                  │                        │          │                  │ team and         │                   │
+      │                  │                        │          │                  │ organization     │                   │
+      │                  │                        │          │                  │ tokens are not   │                   │
+      │                  │                        │          │                  │ supported        │                   │
+      │ Requests per     │ requests_per_second    │ –        │ 30               │ Per-source API   │                   │
+      │ second           │                        │          │                  │ rate limit       │                   │
+      │ Workspace        │ workspace_concurrency  │ –        │ 8                │ How many         │                   │
+      │ concurrency      │                        │          │                  │ workspaces are   │                   │
+      │                  │                        │          │                  │ processed at     │                   │
+      │                  │                        │          │                  │ once during      │                   │
+      │                  │                        │          │                  │ discovery        │                   │
+      │ Treat all as     │ treat_all_as_sensitive │ –        │                  │ Leave every      │ only values the   │
+      │ sensitive        │                        │          │                  │ variable value   │ source marks      │
+      │                  │                        │          │                  │ empty at         │ sensitive are     │
+      │                  │                        │          │                  │ discover so      │ withheld          │
+      │                  │                        │          │                  │ mutate captures  │                   │
+      │                  │                        │          │                  │ it, for sources  │                   │
+      │                  │                        │          │                  │ that keep        │                   │
+      │                  │                        │          │                  │ secrets in       │                   │
+      │                  │                        │          │                  │ ordinary         │                   │
+      │                  │                        │          │                  │ variables        │                   │
+      │ VCS integration  │ vcs_integration_id     │ –        │                  │ Spacelift VCS    │ uses an           │
+      │                  │                        │          │                  │ integration id   │ integration       │
+      │                  │                        │          │                  │ to use during    │ automatically     │
+      │                  │                        │          │                  │ discovery and to │ when only one can │
+      │                  │                        │          │                  │ repair           │ access the        │
+      │                  │                        │          │                  │ repositories     │ repository; audit │
+      │                  │                        │          │                  │ left unbound     │ reports ambiguous │
+      │                  │                        │          │                  │                  │ repositories      │
+      └──────────────────┴────────────────────────┴──────────┴──────────────────┴──────────────────┴───────────────────┘
 
-    Repair Keys (used in `liftoff audit --repair`) (4)
+    Repair Keys (used in `liftoff audit --repair`) (6)
       ┌──────────────────────┬──────────────────────┬──────────┬─────────┬──────────────────────┬──────────────────────┐
       │ Label                │ Key                  │ Required │ Default │ Help                 │ When Unset           │
       ├──────────────────────┼──────────────────────┼──────────┼─────────┼──────────────────────┼──────────────────────┤
-      │ Module workflow tool │ module_workflow_tool │ –        │         │ What to write for    │ empty module         │
-      │                      │                      │          │         │ modules exported     │ workflow tools stay  │
-      │                      │                      │          │         │ with an empty        │ unrepaired until     │
-      │                      │                      │          │         │ workflow tool:       │ this is set          │
+      │ VCS integration      │ vcs_integration_id   │ –        │         │ Spacelift VCS        │ uses an integration  │
+      │                      │                      │          │         │ integration id to    │ automatically when   │
+      │                      │                      │          │         │ use during discovery │ only one can access  │
+      │                      │                      │          │         │ and to repair        │ the repository;      │
+      │                      │                      │          │         │ repositories left    │ audit reports        │
+      │                      │                      │          │         │ unbound              │ ambiguous            │
+      │                      │                      │          │         │                      │ repositories         │
+      │ Module workflow tool │ module_workflow_tool │ –        │         │ Workflow tool to set │ audit cannot repair  │
+      │                      │                      │          │         │ when a module has    │ missing module       │
+      │                      │                      │          │         │ none:                │ workflow tools       │
       │                      │                      │          │         │ `TERRAFORM_FOSS`,    │                      │
       │                      │                      │          │         │ `OPEN_TOFU`, or      │                      │
       │                      │                      │          │         │ `CUSTOM`             │                      │
-      │ Default branch       │ default_branch       │ –        │ main    │ What to write for    │                      │
-      │                      │                      │          │         │ stacks and modules   │                      │
-      │                      │                      │          │         │ exported with no     │                      │
-      │                      │                      │          │         │ branch (they track   │                      │
-      │                      │                      │          │         │ their repo's         │                      │
-      │                      │                      │          │         │ default)             │                      │
-      │ Custom runner image  │ custom_runner_image  │ –        │         │ Untagged Docker      │ CUSTOM-workflow      │
-      │                      │                      │          │         │ image carrying the   │ stacks stay          │
-      │                      │                      │          │         │ Terraform binaries   │ unrunnable and       │
-      │                      │                      │          │         │ for CUSTOM-workflow  │ `liftoff audit`      │
-      │                      │                      │          │         │ stacks; the repair   │ flags each until     │
-      │                      │                      │          │         │ tags it with each    │ this is set          │
-      │                      │                      │          │         │ stack's version      │                      │
-      │ Worker pool          │ worker_pool_id       │ –        │         │ Spacelift private    │ generated stacks run │
-      │                      │                      │          │         │ worker pool id to    │ on the public pool   │
-      │                      │                      │          │         │ assign to generated  │ when the account has │
-      │                      │                      │          │         │ stacks; must match a │ one; `liftoff audit` │
-      │                      │                      │          │         │ pool discover        │ flags each while     │
-      │                      │                      │          │         │ recorded on the      │ private pools exist  │
-      │                      │                      │          │         │ account              │                      │
+      │ Default branch       │ default_branch       │ –        │ main    │ Branch to set when a │                      │
+      │                      │                      │          │         │ stack or module      │                      │
+      │                      │                      │          │         │ follows its          │                      │
+      │                      │                      │          │         │ repository's default │                      │
+      │                      │                      │          │         │ branch               │                      │
+      │ Custom runner image  │ custom_runner_image  │ –        │         │ Docker image         │ CUSTOM stacks        │
+      │                      │                      │          │         │ containing the       │ without runner       │
+      │                      │                      │          │         │ binaries for CUSTOM  │ images cannot run    │
+      │                      │                      │          │         │ stacks; when the     │ and remain audit     │
+      │                      │                      │          │         │ image has no tag,    │ findings             │
+      │                      │                      │          │         │ audit repair uses    │                      │
+      │                      │                      │          │         │ each stack's version │                      │
+      │ Worker pool          │ worker_pool_id       │ –        │         │ Spacelift private    │ stacks without a     │
+      │                      │                      │          │         │ worker pool id to    │ worker pool use the  │
+      │                      │                      │          │         │ assign to stacks     │ public pool when     │
+      │                      │                      │          │         │ that have no pool;   │ available; audit     │
+      │                      │                      │          │         │ the id must match a  │ reports them when    │
+      │                      │                      │          │         │ pool found during    │ private pools exist  │
+      │                      │                      │          │         │ discovery            │                      │
+      │ Repository map       │ repository_map       │ –        │         │ YAML or JSON file    │ VCS-less stacks stay │
+      │                      │                      │          │         │ pairing VCS-less     │ unrepaired and       │
+      │                      │                      │          │         │ stacks or spaces to  │ `liftoff audit`      │
+      │                      │                      │          │         │ repositories         │ flags each until a   │
+      │                      │                      │          │         │ (`@repos.yaml`);     │ repository is        │
+      │                      │                      │          │         │ inline `stack-       │ assigned             │
+      │                      │                      │          │         │ id=repo`,            │                      │
+      │                      │                      │          │         │ `pattern*=repo`,     │                      │
+      │                      │                      │          │         │ `space:name=repo`    │                      │
+      │                      │                      │          │         │ also works           │                      │
       └──────────────────────┴──────────────────────┴──────────┴─────────┴──────────────────────┴──────────────────────┘
 
     Mutations (4)
       ┌─────────────────────┬────────────────────────────────────────────┬─────────────────────────────────────────────┐
       │ Name                │ Description                                │ When Unset                                  │
       ├─────────────────────┼────────────────────────────────────────────┼─────────────────────────────────────────────┤
-      │ secrets             │ capture sensitive variable values via a    │ sensitive variable values come over empty;  │
-      │                     │ temporary agent — mutates the source,      │ stage the workspaces and run `liftoff       │
-      │                     │ always reverted                            │ mutate --allow-mutation secrets` to capture │
-      │                     │                                            │ them, or set them in Spacelift after the    │
-      │                     │                                            │ migration                                   │
-      │ context-secrets     │ capture sensitive variable-set values via  │ sensitive variable-set values come over     │
-      │                     │ a temporary agent — creates and deletes    │ empty; run `liftoff mutate --allow-mutation │
-      │                     │ one throwaway workspace per organization,  │ context-secrets` to capture them, or set    │
-      │                     │ briefly attaches each variable set to it,  │ them on the migrated contexts in Spacelift  │
-      │                     │ always reverted                            │ afterwards                                  │
-      │ state               │ capture each staged workspace's Terraform  │ no Terraform state is captured, so `liftoff │
-      │                     │ state — reads the source, changes nothing  │ finalize state` has nothing to push and the │
-      │                     │                                            │ migrated stacks start empty                 │
-      │ module-git-versions │ resolve each published module version's    │ module versions keep no commit SHA, so      │
-      │                     │ commit SHA from its VCS — reads the        │ `liftoff finalize modules` skips them and   │
-      │                     │ repository, changes nothing                │ the private registry migrates without its   │
-      │                     │                                            │ published versions                          │
+      │ secrets             │ capture sensitive workspace variable       │ sensitive workspace variable values remain  │
+      │                     │ values with a temporary agent; all source  │ empty; capture them with `liftoff mutate -- │
+      │                     │ changes are restored                       │ allow-mutation secrets`, or set them in     │
+      │                     │                                            │ Spacelift after migration                   │
+      │ context-secrets     │ capture sensitive variable-set values with │ sensitive variable-set values remain empty; │
+      │                     │ temporary agents and workspaces; all       │ capture them with `liftoff mutate --allow-  │
+      │                     │ source changes are restored                │ mutation context-secrets`, or set them on   │
+      │                     │                                            │ the migrated contexts in Spacelift          │
+      │ state               │ copy Terraform state from each staged      │ Terraform state is not captured, so the     │
+      │                     │ workspace without changing the source      │ migrated stacks start without state         │
+      │ module-git-versions │ find the commit SHA for each published     │ module versions have no commit SHA, so      │
+      │                     │ module version by reading its VCS          │ `liftoff finalize modules` skips them       │
+      │                     │ repository                                 │                                             │
       └─────────────────────┴────────────────────────────────────────────┴─────────────────────────────────────────────┘
 
 Next
@@ -384,15 +430,16 @@ Spacelift Auth
   User      migration-key
   Role      admin
 
-Config Keys (used in `liftoff discover`) (4)
-  ┌───────────────────────┬─────┬──────────┬────────┬─────────────────────────────────────────────────────────┐
-  │ Key                   │ Set │ Required │ Secret │ Effect                                                  │
-  ├───────────────────────┼─────┼──────────┼────────┼─────────────────────────────────────────────────────────┤
-  │ api_endpoint          │ –   │ –        │ –      │ connects to https://app.terraform.io                    │
-  │ api_token             │ ✓   │ ✓        │ ✓      │ uses the configured value                               │
-  │ requests_per_second   │ –   │ –        │ –      │ the Terraform API is called at up to 30 requests/second │
-  │ workspace_concurrency │ –   │ –        │ –      │ up to 8 workspaces are enriched concurrently            │
-  └───────────────────────┴─────┴──────────┴────────┴─────────────────────────────────────────────────────────┘
+Config Keys (used in `liftoff discover`) (5)
+  ┌────────────────────────┬─────┬──────────┬────────┬─────────────────────────────────────────────────────────┐
+  │ Key                    │ Set │ Required │ Secret │ Effect                                                  │
+  ├────────────────────────┼─────┼──────────┼────────┼─────────────────────────────────────────────────────────┤
+  │ api_endpoint           │ –   │ –        │ –      │ connects to https://app.terraform.io                    │
+  │ api_token              │ ✓   │ ✓        │ ✓      │ uses the configured value                               │
+  │ requests_per_second    │ –   │ –        │ –      │ the Terraform API is called at up to 30 requests/second │
+  │ workspace_concurrency  │ –   │ –        │ –      │ up to 8 workspaces are enriched concurrently            │
+  │ treat_all_as_sensitive │ –   │ –        │ –      │ only values the source marks sensitive are withheld     │
+  └────────────────────────┴─────┴──────────┴────────┴─────────────────────────────────────────────────────────┘
 
 Repair Keys (used in `liftoff audit --repair`) (4)
   ┌──────────────────────┬─────┬──────────┬────────┬───────────────────────────────────────────────────────────────┐
@@ -436,7 +483,13 @@ Next
 Where `liftoff sources` showed templates, this shows results: every `Effect` is rendered with the value the run will actually use.
 Two more sections appear only when something needs attention: `Missing Required` (required keys with no value) and `Unknown Keys` (settings in `config.yaml` the source doesn't recognize — usually a typo'd `--set`).
 
-Read the `Effect` column top to bottom and check it against your intent.
+Read the `Effect` column. It is what this run will do.
+
+A value the source did not mark sensitive is stored as an ordinary value and rendered into the generated code.
+Set the source's treat-all-as-sensitive key and discover leaves every variable value empty instead, preserving the original source record. `liftoff mutate` captures the values.
+Use it when the source keeps secrets in ordinary variables.
+If discovery already ran, enable the setting and run `liftoff discover --clobber` to replace those rows.
+
 Worth deciding now:
 
 - **Rate and concurrency** — use the source's reported keys to keep discovery within its API limits.
@@ -447,6 +500,10 @@ Worth deciding now:
 
 <!-- liftoff:skill terraform -->
 The default request rate and workspace concurrency are safe for Terraform Cloud; lower them when a Terraform Enterprise installation needs a gentler load.
+
+`source.treat_all_as_sensitive=true` leaves every variable value empty at discover, including ones Terraform did not mark sensitive.
+The original Terraform records remain intact under encryption.
+`liftoff mutate --allow-mutation secrets,context-secrets` captures them.
 
 The repair keys are `module_workflow_tool`, `default_branch`, `custom_runner_image`, `worker_pool_id`, and `repository_map`.
 They change nothing during discovery.

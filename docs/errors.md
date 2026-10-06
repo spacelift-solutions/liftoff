@@ -163,6 +163,8 @@ The store and the generated module on your own disk.
 | `corrupt_store` | A row in the local store could not be decoded into the model. | Re-run `liftoff discover --clobber` to rebuild the store. |
 | `generate_failed` | The generated module could not be written to disk. | Check the output directory is writable, then re-run `liftoff generate`. |
 | `schema_too_new` | The workspace store was written by a newer build of the kit than this one. | Upgrade the kit, or point `--config-dir` at a workspace this build wrote. |
+| `store_key_invalid` | The supplied key does not unlock the encrypted workspace store. | Use the password chosen at `liftoff init`. A lost password cannot be recovered: start a new workspace, re-discover, and re-capture. |
+| `store_key_required` | The workspace store is encrypted and no key was supplied. | Export LIFTOFF_STORE_KEY with the store password, or run from a terminal to be prompted. |
 | `store_migrate_failed` | The workspace store cannot be brought up to this build's schema in place. | Keep it and run the build that wrote it, or start a separate workspace with `--config-dir`. |
 | `unreadable_module` | The generated module directory holds something the kit cannot read. | The directory must hold only the generated module: remove anything else, or re-render it with `liftoff generate`. |
 | `workspace_not_initialized` | There is no workspace store to read. | Run `liftoff init`, or point `--config-dir` at an initialized workspace. |

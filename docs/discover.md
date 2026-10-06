@@ -58,17 +58,27 @@ Next
 `Spacelift Counts` is the other end of the pipe: what your Spacelift account has, which discover reads before it touches the source — VCS integrations, worker pools, and destination spaces.
 `Sensitive Values` reports which sensitive values the source returned, which are empty, and which a later capability captured.
 The notes say what is missing and whether the configured source offers a way to capture it later (stage what you want, then [`liftoff mutate`](mutate.md)).
+A value the source did not mark sensitive is stored as an ordinary value and rendered into the generated code.
+Set the source's treat-all-as-sensitive key before discover and no variable values are exported until [`mutate`](mutate.md).
+`liftoff sources` lists the key.
+Use it when the source keeps secrets in ordinary variables.
 
 <!-- liftoff:skill terraform -->
 Terraform Cloud and Terraform Enterprise hide sensitive variable values.
 Discover records those variables without values and reports how many still need to be captured.
 Use `liftoff mutate` to capture them later.
 
+Set `source.treat_all_as_sensitive=true` before discover to treat every variable that way, including values Terraform did not mark sensitive.
+Discover leaves the values empty while preserving the original Terraform records under encryption.
+Mutate fills the values.
+If this workspace was already discovered, run `liftoff discover --clobber` after enabling the setting.
+
 Spacelift variables cannot store multiline values.
 Liftoff converts each multiline workspace or variable-set value into a mounted file under `/mnt/workspace/liftoff/`.
 It also adds `before_init` and `before_apply` hooks to export the file contents under the original variable name.
 The value is stored only as a mounted file, not as both a file and a variable.
 For this reason, the Mounted Files count can be higher than the number of source files.
+With `treat_all_as_sensitive`, multiline values stay empty variables at discover and become mounted files when mutate captures them.
 <!-- liftoff:skill /terraform -->
 
 Discover is deliberately whole-estate and read-only: you can't choose what to migrate until you can see everything, and pulling it all is safe because nothing is mutated.

@@ -117,7 +117,7 @@ Everything else reads the local store.
 
 | **step** | **command**                                            | **writes**                                        |
 |----------|--------------------------------------------------------|---------------------------------------------------|
-| 1        | `liftoff init`                                         | the `./.liftoff` workspace                        |
+| 1        | `liftoff init`                                         | the `./.liftoff` workspace (encrypted store)      |
 | 2        | `liftoff sources`                                      | nothing                                           |
 | 3        | `liftoff configure --source <id> --set source.<key>=v` | `config.yaml`                                     |
 | 4        | `liftoff configure validate`                           | nothing                                           |
