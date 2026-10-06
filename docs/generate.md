@@ -87,6 +87,9 @@ Ignored (1)
       my-amazing-workspace-local-no-vcs (id: ws-oxRaEDV2f5uMHy5f)
         Kind  stack
         URL   https://app.terraform.io/app/Apollorion/workspaces/my-amazing-workspace-local-no-vcs
+
+Next
+  $ liftoff publish
 ```
 
 And in the module, right where the hand-edit belongs:
