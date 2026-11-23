@@ -324,7 +324,7 @@ Everything else — the repaired branches and module tool, the warnings — is r
 Worth knowing:
 
 - **Repair is idempotent and local.**
-  Re-running `--repair` writes nothing new, and a re-discover overwrites repairs — just repair again after.
+  Re-running `--repair` writes nothing new. Re-discovery can overwrite repairs on units that have not migrated; repair again afterward.
 - **`--rule` scopes a run** to named rules (repeatable): `liftoff audit --repair --rule missing-vcs-branch`.
 - **One entity at a time is [`liftoff model set`](model.md), not a flag here.**
   `audit --repair` is the estate-wide fix: it applies a config key everywhere it fits and only ever fills what is empty.

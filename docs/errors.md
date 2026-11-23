@@ -34,7 +34,6 @@ The command, its flags, or the entity it named. Nothing has happened yet, and re
 
 | Code | What it means | What to do |
 | --- | --- | --- |
-| `beta_only` | This feature is in beta and needs explicit consent. | Re-run with `--beta`. |
 | `entity_not_found` | No entity with that id is in the local store. | Run `liftoff discover` first, or check the id with `liftoff model list`. |
 | `error_finding` | The flag only accepts warning or info findings, but an error finding was selected. | Error findings block generation. Accept them with `liftoff audit --ignore-finding <rule[@kind][:entity]>`, or fix or unstage them. |
 | `field_not_settable` | The named field cannot be written. | The error says why; write a field the entity allows, or correct it at the source and re-discover. |

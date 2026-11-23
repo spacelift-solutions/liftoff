@@ -20,9 +20,9 @@ There are two ways to change a value, and they are not interchangeable.
 Reach for the repair key when the same answer is right for everything it touches.
 Reach for `model set` when specific entities are wrong, such as a repository that needs repointing or a namespace left stale by an account rename, or when a value is already populated, which `--repair` will never touch.
 
-> **A later `liftoff discover` writes over anything `model set` wrote.**
-> Discover re-reads the source and refreshes each entity, so a local correction is replaced by whatever the source still says.
-> A correction that has to survive re-discovery belongs at the source, or in a repair key.
+> **Re-discovery can overwrite local corrections on units that have not migrated.**
+> Discovery leaves migrated units and all their owned data unchanged, including raw source records, and skips newly discovered children owned by those units. Explicit restaging allows discovery to refresh them again. Captured values are preserved.
+> Make lasting source-field corrections at the source, or use a repair key where one is available.
 
 ## What can be named
 

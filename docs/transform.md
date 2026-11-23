@@ -1,10 +1,49 @@
 # Transform
 
-Reshape the current staged batch before it is migrated.
+Reshape the current staged batch or enable a required destination-account setting.
 
 The default walkthrough reproduces the source estate faithfully. A customer can
 instead choose a deployment-wide policy while a batch is staged. The existing
 admin stack applies that choice through `generate` and `publish`.
+
+## Enable child-space management
+
+A child admin stack needs the account setting **Allow space admins to create and edit child spaces** to manage spaces beneath its own space.
+`publish` checks this before committing code or creating stacks and prints the transform command when the setting is disabled.
+Preview the current setting and the scope of the change:
+
+```bash
+liftoff transform enable-child-spaces --dry-run
+```
+
+Enable it, then retry publish:
+
+```bash
+liftoff transform enable-child-spaces
+liftoff publish --approve-all
+```
+
+This transform changes the live destination account immediately; it does not edit the staged model or require regeneration.
+It affects every space admin in the account, allowing them to create and edit inheriting child spaces within their scope.
+It requires account admin credentials permitted to change organization settings.
+An already-enabled account is a no-op.
+Spacelift exposes this setting as a toggle, so liftoff rereads it before changing it and does not retry an uncertain mutation automatically.
+
+For a person, running the explicit transform is approval of that change.
+An agent first runs the transform to register the request; a person then runs this command in their own terminal:
+
+```bash
+liftoff approve transform:enable-child-spaces
+```
+
+The agent retries the transform after approval.
+Consent is single-use and bound to the destination account and the disabled-to-enabled change.
+Approval to apply stacks does not authorize this account setting change.
+The `--dry-run` preview needs no approval and never changes the account.
+
+Spacelift requires spaces managed by non-root admins to have `inherit_entities = true`.
+Publish also checks this restriction; isolated spaces must be managed by an admin in the root space.
+See [Spacelift's child-space setup guidance](https://support.spacelift.io/articles/7642717245-how-do-i-create-spaces-using-a-non-root-api-key).
 
 ## Convert the staged deployment to OpenTofu
 
@@ -202,25 +241,11 @@ liftoff transform space mv stack:<id> --to space:local:<id>
 from the local plan (run it with `--dry-run` first). It does not delete a live
 destination-account space.
 
-`transform space mv` requires a staged batch. To remap after the resources are live,
-restage them first, then transform, generate, publish, and finalize:
-
-```bash
-liftoff batch stage stack:<id> --restage-migrated
-liftoff transform space mv stack:<id> --to spacelift_space:<id>
-liftoff generate
-liftoff publish
-liftoff publish --confirm --proof-token <token from the publish plan>
-liftoff finalize staged
-```
-
-Generate writes `moved.tf` so the next apply is a state move, not a destroy.
-Units that were already migrated on an older build get that recorded prefix the
-next time any command opens the store, so a remap of that batch still emits
-moved blocks.
-Read the plan from `publish` and use its proof token with `publish --confirm` to
-apply it before finalizing the batch.
-`finalize staged` records the new module prefix so a later remap can move again.
+`transform space mv` requires a staged batch and can choose a resource's space before its first apply.
+Once applied, each space has a separate admin state.
+Moving an applied resource to another space therefore requires an explicit state transfer as well as a configuration change.
+Generation refuses a cross-space move until that transfer is resolved; `moved` blocks cannot transfer ownership between independent states.
+Restaging alone does not make such a move safe.
 
 Re-run after `liftoff discover --clobber` only if you need to place again;
 clobber rebuilds the store, including placement.

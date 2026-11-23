@@ -28,7 +28,7 @@ Units (26)
   └─────────┴────────────────────────────────────┴────────────────────────────────────┴──────────┴──────────────────────┘
 ```
 
-Everything lands `unstaged` after discover — "not yet triaged."
+New units land `unstaged` after discover — "not yet triaged."
 You stage the units you want in this batch, and re-run `list` (or `list --status staged`) to see the batch take shape.
 
 ## `liftoff batch stage` — pick the batch
@@ -97,6 +97,7 @@ Staging normally moves an `unstaged` unit into the batch and is ungated.
 But if the cascade would pull back a unit you've already _migrated_, staging drops it out of `migrated` — and the next [`generate`](generate.md) then rewrites its file, losing any hand-edits you made to it.
 So that case refuses first, and the refusal names every migrated unit the cascade touches (not just the one you typed) with why it came along, so what you agree to is the real blast radius.
 A person agrees by re-running with `--restage-migrated`; an agent cannot use the flag, and instead asks the user to run `liftoff approve stage:migrated` in a terminal of their own.
+Restaging also makes the unit eligible for discovery again. Re-run `liftoff discover` to refresh its source settings and pick up newly added owned data before generating.
 Staging fresh units is unaffected.
 
 ## `liftoff batch unstage` — change your mind
@@ -132,8 +133,8 @@ The tree shows the space hierarchy; dropping units onto a space updates its
 count and nothing else. Choose the **units** count on a row to open a scrolling
 window of what that space holds and drag units back out, onto another space or
 back onto the unit list to undo a queued move. The account root is a
-valid destination, and units already there can be moved again later. Attached
-contexts follow their stacks in the draft.
+valid destination. Attached contexts follow their stacks in the draft.
+Placement edits change the local model. After an admin stack has applied, moving a resource to another space also requires transferring its state between admin stacks; [generation refuses unresolved ownership changes](generate.md).
 
 **Labels** adds a set of labels to every staged stack, the same thing as
 `liftoff transform stack-labels`. Type them comma-separated; **Preview** is the
