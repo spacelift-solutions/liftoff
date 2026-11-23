@@ -2,12 +2,12 @@
 
 `liftoff` moves an infrastructure-as-code estate (Terraform Cloud and Enterprise, with more sources to come) onto Spacelift.
 
-It pulls everything the source knows into a local store on your own machine, audits what it found, renders the whole estate as OpenTofu you can read before anything is created, and hands that to a Spacelift admin stack to apply. With `liftoff`, you'll have one static binary, no Docker, and safe re-runs for every step if needed.
+It pulls everything the source knows into a local store on your own machine, audits what it found, renders the whole estate as OpenTofu you can read before anything is created, and applies it through independent admin stacks for each space. With `liftoff`, you'll have one static binary, no Docker, and safe re-runs for every step if needed.
 
 There are three methods to use `liftoff`. They all run the same commands against the same local workspace, so you can move between them mid-migration:
 
 - **The CLI, driven by an AI agent** (recommended): Point an agent at these pages and it runs the same commands, stopping at every decision that is yours. Start at [Choosing a model](models.md), then read [Driving this as an agent](#driving-this-as-an-agent) below.
-- **The browser UI** `liftoff ui --beta`: The same pipeline as a page, with the step rail and these guides beside each screen. It is in beta and needs the `--beta` flag; see [the browser UI](ui.md).
+- **The browser UI** `liftoff ui`: The same pipeline as a page, with the step rail and these guides beside each screen. See [the browser UI](ui.md).
 - **The CLI, by hand**: Type the commands yourself and read what each one reports.
 
 ## Walkthrough
@@ -23,8 +23,8 @@ Migrations are **iterative**: discover once, then stage → audit → generate �
 3. **[Batch](batch.md)**: List what's there and stage the units to migrate in this batch (step 6).
 4. **[Audit](audit.md)**: Findings over the staged set, repair keys, `--repair` (step 7).
    **[Model](model.md)**: Read the local store, and correct a value `--repair` cannot (any time).
-5. **[Generate](generate.md)**: Render the OpenTofu module for the batch (step 8).
-6. **[Publish](publish.md)**: Hand the module to Spacelift and apply it (step 9).
+5. **[Generate](generate.md)**: Render the independent OpenTofu roots for the batch (step 8).
+6. **[Publish](publish.md)**: Publish the shared module and apply every admin stack in dependency order (step 9).
 7. **[Mutate](mutate.md)**: Capture the staged workspaces' secret values, which touches the source again (step 10).
 8. **[Finalize](finalize.md)**: Mark the batch migrated, then loop back to discover for the next batch (step 11).
 
@@ -123,11 +123,12 @@ Everything else reads the local store.
 | 4        | `liftoff configure validate`                           | nothing                                           |
 | 5        | `liftoff discover`                                     | the store (the whole estate, read-only)           |
 | 6        | `liftoff batch stage <units>`                          | the store (staging choices)                       |
+| optional | `liftoff transform enable-child-spaces`                | Spacelift (account-wide setting, human approval)  |
 | optional | `liftoff transform workflow-tool`                      | the store (staged entities only)                  |
 | optional | `liftoff transform space mv` / `stack-labels`          | the store (staged entities only)                  |
 | 7        | `liftoff audit [--repair]`                             | the store, under `--repair` only                  |
-| 8        | `liftoff generate`                                     | the OpenTofu module (staged ∪ migrated)           |
-| 9        | `liftoff publish`                                      | Spacelift (managed repo + admin stack)            |
+| 8        | `liftoff generate`                                     | the OpenTofu roots (staged ∪ migrated)           |
+| 9        | `liftoff publish`                                      | Spacelift (repo, registry module, admin stacks)            |
 | 10       | `liftoff mutate --allow-mutation <name>`               | the store (captured secrets; source reverted)     |
 | 11       | `liftoff finalize staged`                              | the store (batch → migrated)                      |
 | ↻        | back to `liftoff discover` for the next batch          | —                                                 |
@@ -154,9 +155,9 @@ Put the source back if a `mutate` run was interrupted before it finished reverti
 
 This is almost never needed; when it is, `mutate` refuses to run and points you here. Details in [restore.md](restore.md).
 
-### `liftoff ui --beta`
+### `liftoff ui`
 
-Serve a browser UI over this same workspace and open it, with the step rail, each step's screen, and these pages readable beside them. This is in beta, so it needs the `--beta` consent flag; the CLI stays the blessed path.
+Serve a browser UI over this same workspace and open it, with the step rail, each step's screen, and these pages readable beside them.
 
 For people only: agents are refused, and the URL it prints is a session credential. Details in [ui.md](ui.md).
 

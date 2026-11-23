@@ -2,7 +2,7 @@
 
 `liftoff` migrates an IaC estate — Terraform Cloud/Enterprise today, more sources to come — onto [Spacelift](https://spacelift.io).
 One static binary, no Docker, no dependencies.
-It pulls everything the source knows into a local SQLite store, audits it, repairs what it can, and renders an OpenTofu module that a Spacelift admin stack applies to recreate the whole estate — spaces, stacks, modules, contexts, variables — where it belongs.
+It pulls everything the source knows into a local SQLite store, audits it, repairs what it can, and renders an independent OpenTofu root and admin stack for each space to recreate the estate — spaces, stacks, modules, contexts, variables — where it belongs.
 
 The kit is built agent-first: every command emits one structured, token-efficient result with a `next` hint, errors say exactly what to do, and the documentation is embedded in the binary where an agent can read it.
 Point an AI at it and it can drive the whole migration — and every step works just as well typed by hand.
@@ -19,8 +19,9 @@ discover → audit → generate → publish → finalize
    It is the only step that talks to the source, it resumes if interrupted, and it never mutates the source unless you opt in (secret capture, always reverted).
 2. **Audit** runs rules over the store and tells you what needs attention before anything is created: what each finding means, what `--repair` would write, and what needs a human.
    Repairs touch only the local store.
-3. **Generate** renders the store as a nested, deterministic OpenTofu module tree — a code review of your migration, not a black box.
-4. **Publish** hands that module to a Spacelift admin stack, which applies it to create everything; **finalize** moves in what can't travel as code — secret values, tfvars, state, module versions.
+3. **Generate** renders independent OpenTofu roots for each space, with stack dependencies passing inputs from parents to children.
+4. **Publish** publishes or reuses the shared admin module, then plans the root admin stack. Confirm each plan to apply it and see the next child plan, or explicitly approve the whole sequence with `--approve-all`. Each parent creates its child spaces and places their admin stacks inside them.
+5. **Finalize** moves in what cannot travel as code — secret values, tfvars, state, and module versions — after all admin stacks have applied. Publishing creates workload stack configurations; it does not run those workloads.
 
 Everything downstream of discover re-runs safely and instantly: re-discover, re-audit, regenerate, diff.
 While a batch is staged, **transform** can reshape the deployment toward
@@ -49,7 +50,7 @@ Verify it with `liftoff --version`.
 
 All three run the same commands against the same local workspace, so you can move between them mid-migration.
 
-**By hand, in your terminal.** The blessed path: `liftoff --help` to see the surface, then [the walkthrough](docs/README.md) for the migration step by step.
+**By hand, in your terminal.** Run `liftoff --help` to see the surface, then [the walkthrough](docs/README.md) for the migration step by step.
 
 **With an AI agent.** One instruction is enough:
 
@@ -59,9 +60,9 @@ All three run the same commands against the same local workspace, so you can mov
 The agent takes it from there: it installs `liftoff`, runs `liftoff skills start`, and follows the embedded walkthrough.
 The `skills` command serves that walkthrough page by page (the same pages under [docs/](docs/README.md)), so the agent learns the pipeline, the decisions, and the guardrails straight from the binary it's driving.
 
-**In the browser**, with `liftoff ui --beta`.
+**In the browser**, with `liftoff ui`.
 The same pipeline as a page: a step rail, a screen per step, and the walkthrough readable beside each one.
-It is in beta, so it asks for the `--beta` flag as consent and the CLI stays the blessed path.
+The UI is included in the binary and opens directly into your workspace.
 Details in [docs/ui.md](docs/ui.md).
 
 **If you are that agent**, three rules bind you before you run anything.

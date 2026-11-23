@@ -16,7 +16,7 @@ Reach for it when you want the migration's IaC to live in your own VCS from day 
 .liftoff/data/generated/
 ```
 
-That directory **is** the module: a root module (`providers.tf`, `versions.tf`, and a `liftoff.tf` that calls one module per space) plus a nested directory per space.
+That directory contains independent OpenTofu roots, one per space. Each has its own `providers.tf`, `versions.tf`, and `liftoff.tf`. The `liftoff-stacks.json` file records the admin stack IDs, project roots, and parents.
 Commit the whole tree, preserving its layout — it's plain OpenTofu.
 
 ```bash
@@ -32,7 +32,13 @@ Re-run `liftoff generate` after new repairs and commit again the same way; the m
 
 ## What to create on the Spacelift side
 
-Wire an **admin stack** pointing at your repo.
+The generated child admin stack definitions target a Spacelift-managed repo by default.
+Before using external VCS, adapt the shared child admin module in `modules/admin-stack/main.tf`: replace `spacelift_repo {}` with your VCS integration settings and set the branch.
+Set the repository and prefix project roots in each `liftoff.tf` module call if the generated tree lives below your repo root.
+Generation rewrites these wiring files, so reapply those adaptations after regenerating.
+Keep the generated admin stack IDs and dependency references consistent with the manifest.
+
+Wire the **root admin stack** pointing at your repo, using the root stack ID recorded in the manifest.
 In the Spacelift UI (or via the `spacelift_stack` Terraform resource / a Blueprint):
 
 1. **Connect the repo.**
@@ -46,13 +52,13 @@ In the Spacelift UI (or via the `spacelift_stack` Terraform resource / a Bluepri
    Attach the **space-admin role** to the stack on the space it manages (the root space, unless you scoped the migration elsewhere).
    The old "administrative" checkbox is retired — admin is a role binding now.
 
-That's the same shape `liftoff publish` builds; you're just doing it by hand against your repo instead of a managed one.
+Set `TF_VAR_liftoff_space_admin_role_id` on the root admin stack to your account's built-in space-admin role ID. The dependency chain passes that ID to the child stacks.
 
 ## Applying, and what stays the same
 
 Trigger the admin stack.
-Its run does a `tofu init` and applies the module, creating every space, context, stack, and module — review the plan like any other run; the resource count should line up with the `Counts` your discover reported.
-Push a change to the module and its next run reconciles Spacelift to match, moves in place.
+Review and apply its plan, then review and apply each child admin stack in dependency order. Each stack creates its own space contents, immediate child spaces, and admin stacks inside those child spaces. Autodeploy stays disabled. Finish the whole tree before finalizing.
+Moving an applied resource between spaces requires transferring its state between admin stacks.
 
 Everything downstream is **identical to the managed-repo path**.
 The module carries secret _references_ and no state, so the stacks stand up from discover's read-only data alone, and the [finalize](finalize.md) steps (`sensitive`/`state`/`modules`) work exactly the same — they resolve entities by name, not by how the repo is hosted.

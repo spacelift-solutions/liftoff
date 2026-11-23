@@ -71,11 +71,14 @@ Use `liftoff mutate` to capture them later.
 Set `source.treat_all_as_sensitive=true` before discover to treat every variable that way, including values Terraform did not mark sensitive.
 Discover leaves the values empty while preserving the original Terraform records under encryption.
 Mutate fills the values.
-If this workspace was already discovered, run `liftoff discover --clobber` after enabling the setting.
+If this workspace was already discovered, run `liftoff discover` again after enabling the setting.
+Re-discovery refreshes units that have not migrated and preserves captured sensitive values.
+Restage migrated units before rediscovering them to refresh their source settings.
 
 Spacelift variables cannot store multiline values.
 Liftoff converts each multiline workspace or variable-set value into a mounted file under `/mnt/workspace/liftoff/`.
 It also adds `before_init` and `before_apply` hooks to export the file contents under the original variable name.
+New exports are inserted before existing hooks; existing hook order is retained.
 The value is stored only as a mounted file, not as both a file and a variable.
 For this reason, the Mounted Files count can be higher than the number of source files.
 With `treat_all_as_sensitive`, multiline values stay empty variables at discover and become mounted files when mutate captures them.
@@ -84,23 +87,34 @@ With `treat_all_as_sensitive`, multiline values stay empty variables at discover
 Discover is deliberately whole-estate and read-only: you can't choose what to migrate until you can see everything, and pulling it all is safe because nothing is mutated.
 From here you pick a batch with [`liftoff batch`](batch.md); the heavy, source-touching work ([`mutate`](mutate.md)) runs later and only for what you stage.
 
-Two behaviors worth knowing:
+Behaviors worth knowing:
 
 - **Discover reads your Spacelift account first, before it touches the source.**
   It records the VCS integrations, worker pools, and spaces the account has, so a bad Spacelift key pair fails here rather than after a long walk through the estate, and the stacks it discovers can be bound to the integration that actually serves each repository. List destination spaces with `liftoff model list --kind spacelift_space` before mapping a batch onto one.
   Where an account has more than one integration a repository could use, discover picks the one connected to the account or project that repository lives under, preferring a working integration over a broken one — so two GitHub Apps on the same host no longer need you to choose between them by hand.
   This is why the destination credentials are required from this step onward, not only at publish time.
 - **Running discover again is always safe — and it always re-reads your Spacelift account.**
-  When there's nothing new in the source it says so and changes nothing (`note: nothing to discover…`); it never resets the staging choices you've made.
-  But it still reads the destination first every time, and that is deliberate: the estate is cached in the store, the destination is not, because the destination can change while you work — and either way the read is read-only.
+  After a completed run it walks the source again to find additions and refresh ordinary source fields.
+  It never resets your staging choices.
+  An interrupted run resumes its saved pages and completed steps instead of starting another walk.
   A re-run's `Spacelift Counts` is a fresh look, not the cached one, so it catches the account moving underneath the migration.
   In practice that matters: `publish` creating the managed repository's VCS integration takes the account's integration count up by one between batches, and a re-discover is what notices, rather than binding the next batch's stacks against a stale inventory.
-  The `liftoff discover --clobber` hint it offers is the start-fresh option, colored as a caution because it throws away the local results _and_ your staging.
+  `liftoff discover --clobber` is a separate start-fresh option that throws away the local results _and_ your staging. It is not needed to find new source entities.
   Because clobber discards captured secret values and state — the work an approved, source-mutating [`mutate`](mutate.md) run went and got — it now asks a person to approve it, and the ask counts exactly what will be lost (captured sensitive values, captured state blobs, staged units, migrated units) so you approve a real number, not a warning.
   A migration with nothing captured or staged still asks, but says the loss is nothing.
   One caveat it names for you: clobber resets the store, not the files you've already generated, so after a migrated batch those files stay on disk describing an estate the re-discover no longer matches — re-generate, or clobber the output too, to keep them in step.
 - **Re-discovering after migrating a batch is additive.**
-  It refreshes entity data, skips nothing you've staged or migrated, and picks up new source entities — so the next batch starts from a current picture.
+  It adds new independent units, plus variables, mounted files, and attachments owned by units that have not migrated.
+  Ordinary source fields refresh on units that have not migrated yet; local repairs and model edits may need to be reapplied afterward.
+  Records missing from the source are retained.
+  Captured variables and mounted files keep their values, names, and paths; captured state, destination placement, and migration status also survive.
+  Resolved module version commits survive too.
+  Migrated units and all their owned data stay completely unchanged, including their raw source records.
+  Newly discovered children and attachments owned by migrated units are skipped.
+  Explicitly restage a migrated unit to make it eligible for refresh, then re-run discover to pick up its current source settings and owned data.
+  Its generated file stays frozen until it is restaged.
+  New units arrive unstaged: choose the next batch as usual.
+  This also works with an existing migration store; no separate workspace or clobber is needed.
 - **A multi-line variable value becomes a mounted file, not a variable.**
   A Spacelift variable value is single-line, so any value carrying a newline is translated: discover records it as a mounted file at `liftoff/<owner-id>/<NAME>` under `/mnt/workspace/` on its stack or context, and gives that owner `before_init` and `before_apply` hooks that export it back under its own name.
   It is one or the other — the value is never also recorded as a variable — and inside the run it is still an ordinary environment variable.

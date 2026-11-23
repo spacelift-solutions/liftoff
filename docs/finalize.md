@@ -177,7 +177,8 @@ The unrecoverable ones are also surfaced by [`liftoff audit`](audit.md) as `modu
 After state lands, the migration is complete: Spacelift runs plans against the same state the source last held, and the source can be retired on your schedule.
 Migration is lift-and-shift by design: everything lands where it lived at the source.
 The phase that follows is adoption: organizing spaces around how your teams actually work, tightening policies, and adopting Spacelift-native workflows.
-[`liftoff transform space`](transform.md#place-staged-units-into-an-existing-destination-space) can plan spaces and remap migrated units. Generate emits `moved` blocks so the admin stack re-parents those units in place.
+[`liftoff transform space`](transform.md#place-staged-units-into-an-existing-destination-space) can plan spaces and change local placement. Moving an applied resource between spaces also changes which admin stack owns its state.
+Generation refuses that move until state ownership has been transferred; `moved` blocks cannot transfer resources between independent states. The kit does not automate that transfer.
 
 ## Dispose of the workspace when you're done
 

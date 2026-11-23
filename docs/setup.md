@@ -8,13 +8,15 @@ liftoff moves an estate onto Spacelift, so it needs credentials for both ends an
 Have these in place before step 1:
 
 - **A Spacelift account, and an API key with root-space admin access.**
-  The account is read from the very first step, and a repository and admin stack are created later, so a narrowly scoped key fails partway through.
+  The account is read from the first step. Publish later creates a managed repository, a shared registry module when needed, and the root admin stack, so a narrowly scoped key fails partway through.
 - **An account on the system you are migrating from, with credentials that can read everything in scope.**
   Each source declares exactly which keys it needs; `liftoff sources` lists them and step 4 proves them.
 - **A VCS integration in Spacelift that can reach the repositories your source uses.**
   Generated stacks name the integration they bind to, so one has to exist for every provider in the estate.
 - **At least one worker** — a private worker pool with a worker attached, or the public pool.
   Applying the generated code is itself a Spacelift run, so an account with no worker cannot finish a migration.
+- **Child-space management enabled when non-root admin stacks must create spaces.**
+  Publish checks this prerequisite and points to [`liftoff transform enable-child-spaces`](transform.md#enable-child-space-management) if it is disabled. A person must approve the account-wide permission change; the browser offers a separate review and confirmation.
 - **Network access to both APIs** from wherever you run liftoff.
 - **A decision about where the generated code will live**: the Spacelift-managed repository, which needs no setup, or [your own git provider](publish-byo-git.md).
 
@@ -488,7 +490,8 @@ Read the `Effect` column. It is what this run will do.
 A value the source did not mark sensitive is stored as an ordinary value and rendered into the generated code.
 Set the source's treat-all-as-sensitive key and discover leaves every variable value empty instead, preserving the original source record. `liftoff mutate` captures the values.
 Use it when the source keeps secrets in ordinary variables.
-If discovery already ran, enable the setting and run `liftoff discover --clobber` to replace those rows.
+If discovery already ran, enable the setting and run `liftoff discover` again to refresh units that have not migrated.
+Captured sensitive values are preserved; explicitly restage migrated units before rediscovering them to refresh their source settings.
 
 Worth deciding now:
 
